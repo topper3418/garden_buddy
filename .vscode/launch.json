@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Backend (FastAPI)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "./venv/bin/python -m uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Run Frontend (Vite)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Run Frontend + Backend",
+      "configurations": [
+        "Run Backend (FastAPI)",
+        "Run Frontend (Vite)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

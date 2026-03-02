@@ -1,0 +1,121 @@
+"""Media API routes."""
+
+from pathlib import Path
+
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
+
+from src.api.schemas import MediaUpdate
+from src.media.image import delete_image, retrieve_image, save_image
+from src.models.media import Media, MediaCreate, MediaListResponse
+from src.services.media_service import (
+    create_media,
+    delete_media_by_filename_key,
+    delete_media_by_id,
+    get_media_by_id,
+    list_media,
+    query_media,
+    update_media,
+)
+from src.settings import settings
+
+router = APIRouter(prefix="/media", tags=["media"])
+
+
+@router.get("", response_model=MediaListResponse)
+def list_media_endpoint(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    include_file_path: bool = False,
+) -> MediaListResponse:
+    return list_media(limit=limit, offset=offset, include_file_path=include_file_path)
+
+
+@router.get("/query", response_model=list[Media])
+def query_media_endpoint(
+    title_contains: str | None = None,
+    mime_type: str | None = None,
+    min_size: int | None = Query(default=None, ge=0),
+    max_size: int | None = Query(default=None, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    include_file_path: bool = False,
+) -> list[Media]:
+    return query_media(
+        title_contains=title_contains,
+        mime_type=mime_type,
+        min_size=min_size,
+        max_size=max_size,
+        limit=limit,
+        offset=offset,
+        include_file_path=include_file_path,
+    )
+
+
+@router.get("/{media_id}", response_model=Media)
+def get_media_endpoint(media_id: int, include_file_path: bool = False) -> Media:
+    record = get_media_by_id(media_id, include_file_path=include_file_path)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
+    return record
+
+
+@router.get("/{media_id}/file", response_class=FileResponse)
+def get_media_file_endpoint(media_id: int) -> FileResponse:
+    record = get_media_by_id(media_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
+    return retrieve_image(record.filename)
+
+
+@router.post("", response_model=Media, status_code=status.HTTP_201_CREATED)
+async def upload_media_endpoint(
+    file: UploadFile = File(...),
+    title: str | None = Form(default=None),
+) -> Media:
+    unique_filename = await save_image(file)
+    file_path = Path(settings.media_path) / unique_filename
+
+    payload = MediaCreate(
+        filename=unique_filename,
+        title=title,
+        mime_type=file.content_type or "application/octet-stream",
+        size=file_path.stat().st_size,
+    )
+    return create_media(payload)
+
+
+@router.patch("/{media_id}", response_model=Media)
+def update_media_endpoint(media_id: int, payload: MediaUpdate) -> Media:
+    kwargs: dict = {}
+    if "title" in payload.model_fields_set:
+        kwargs["title"] = payload.title
+    if "mime_type" in payload.model_fields_set:
+        kwargs["mime_type"] = payload.mime_type
+    if "size" in payload.model_fields_set:
+        kwargs["size"] = payload.size
+
+    updated = update_media(media_id, **kwargs)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
+    return updated
+
+
+@router.delete("/{media_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_media_endpoint(media_id: int) -> None:
+    record = get_media_by_id(media_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
+
+    delete_image(record.filename)
+    deleted = delete_media_by_id(media_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
+
+
+@router.delete("/by-filename/{filename}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_media_by_filename_endpoint(filename: str) -> None:
+    delete_image(filename)
+    deleted = delete_media_by_filename_key(filename)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
