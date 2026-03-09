@@ -1,10 +1,12 @@
 import { Button, Form, Input, Modal, Popconfirm, Space, Table, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { createPlantType, deletePlantType, listPlantTypes, updatePlantType } from '../api/plantTypes'
 import type { PlantType, PlantTypeCreate, PlantTypeListItem } from '../types/models'
 
 export function PlantTypesPage() {
+  const navigate = useNavigate()
   const [items, setItems] = useState<PlantTypeListItem[]>([])
   const [isModalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PlantType | null>(null)
@@ -44,13 +46,21 @@ export function PlantTypesPage() {
       <Table
         rowKey='id'
         dataSource={items}
+        pagination={{
+          pageSize: 20,
+          showSizeChanger: true,
+          pageSizeOptions: [10, 20, 50],
+          showTotal: (total) => `${total} plant types`,
+        }}
         columns={[
-          { title: 'ID', dataIndex: 'id', width: 80 },
           { title: 'Name', dataIndex: 'name' },
           {
             title: 'Actions',
             render: (_, row) => (
               <Space>
+                <Button size='small' onClick={() => navigate(`/plants?plantTypeId=${row.id}`)}>
+                  View Plants
+                </Button>
                 <Button
                   size='small'
                   onClick={() => {

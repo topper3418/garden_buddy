@@ -22,6 +22,12 @@ describe('species api module', () => {
     )
   })
 
+  it('querySpecies clamps limit to backend max', async () => {
+    const fetchMock = mockFetchJson([])
+    await querySpecies({ limit: 500, offset: 0 })
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/species/query?limit=200&offset=0')
+  })
+
   it('get/create/update/delete functions map to expected endpoints', async () => {
     const getMock = mockFetchJson({ id: 1, name: 'Rose', created_at: 'x' })
     await getSpeciesById(1)

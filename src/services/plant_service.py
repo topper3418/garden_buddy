@@ -50,19 +50,20 @@ def _to_plant_model(row: dict[str, Any]) -> Plant:
     )
 
 
-def list_plants(limit: int = 50, offset: int = 0) -> PlantListResponse:
+def list_plants(limit: int = 50, offset: int = 0, archived: bool = False) -> PlantListResponse:
     """Return lightweight plant records for list views."""
     ensure_tables()
     limit, offset = normalize_pagination(limit, offset)
-    rows = db_list_plants(limit, offset)
+    rows = db_list_plants(limit, offset, archived=archived)
     items = [PlantListItem.model_validate(row) for row in rows]
     return PlantListResponse(items=items, limit=limit, offset=offset)
 
 
 def query_plants(
     name_contains: str | None = None,
-    species_id: int | None = None,
+    species_ids: list[int] | None = None,
     plant_type_id: int | None = None,
+    archived: bool = False,
     limit: int = 50,
     offset: int = 0,
 ) -> list[Plant]:
@@ -71,18 +72,19 @@ def query_plants(
     limit, offset = normalize_pagination(limit, offset)
     rows = db_query_plants(
         name_contains=name_contains,
-        species_id=species_id,
+        species_ids=species_ids,
         plant_type_id=plant_type_id,
+        archived=archived,
         limit=limit,
         offset=offset,
     )
     return [_to_plant_model(r) for r in rows]
 
 
-def get_plant_by_id(plant_id: int) -> Plant | None:
+def get_plant_by_id(plant_id: int, *, include_deleted: bool = False) -> Plant | None:
     """Return a plant by id, or ``None`` if not found."""
     ensure_tables()
-    row = db_get_plant_by_id(plant_id)
+    row = db_get_plant_by_id(plant_id, include_deleted=include_deleted)
     return _to_plant_model(row) if row else None
 
 
@@ -131,6 +133,8 @@ def delete_plant_by_id(plant_id: int) -> bool:
 def add_type_to_plant(plant_id: int, plant_type_id: int) -> Plant | None:
     """Attach a plant type to a plant and return updated plant."""
     ensure_tables()
+    if not get_plant_by_id(plant_id):
+        return None
     add_plant_type_to_plant(plant_id, plant_type_id)
     return get_plant_by_id(plant_id)
 
@@ -138,5 +142,7 @@ def add_type_to_plant(plant_id: int, plant_type_id: int) -> Plant | None:
 def remove_type_from_plant(plant_id: int, plant_type_id: int) -> Plant | None:
     """Detach a plant type from a plant and return updated plant."""
     ensure_tables()
+    if not get_plant_by_id(plant_id):
+        return None
     remove_plant_type_from_plant(plant_id, plant_type_id)
     return get_plant_by_id(plant_id)

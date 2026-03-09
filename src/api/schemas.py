@@ -26,3 +26,4 @@ class MediaUpdate(BaseModel):
     title: str | None = None
     mime_type: str | None = None
     size: int | None = Field(default=None, ge=0)
+    plant_id: int | None = None

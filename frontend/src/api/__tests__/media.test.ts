@@ -16,9 +16,21 @@ describe('media api module', () => {
 
   it('queryMedia maps filters to querystring', async () => {
     const fetchMock = mockFetchJson([])
-    await queryMedia({ titleContains: 'leaf', mimeType: 'image/jpeg', minSize: 10, maxSize: 1000, limit: 5, offset: 2, includeFilePath: false })
+    await queryMedia({
+      nameContains: 'cherry',
+      speciesIds: [2, 4],
+      plantTypeId: 8,
+      titleContains: 'leaf',
+      mimeType: 'image/jpeg',
+      plantId: 3,
+      minSize: 10,
+      maxSize: 1000,
+      limit: 5,
+      offset: 2,
+      includeFilePath: false,
+    })
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/media/query?title_contains=leaf&mime_type=image%2Fjpeg&min_size=10&max_size=1000&limit=5&offset=2&include_file_path=false',
+      'http://localhost:8000/media/query?name_contains=cherry&species_ids=2&species_ids=4&plant_type_id=8&title_contains=leaf&mime_type=image%2Fjpeg&plant_id=3&min_size=10&max_size=1000&limit=5&offset=2&include_file_path=false',
     )
   })
 
@@ -40,10 +52,13 @@ describe('media api module', () => {
     const fetchMock = mockFetchJson({ id: 1, filename: 'a.jpg', mime_type: 'image/jpeg', size: 1, uploaded_at: 'x' })
     const file = new File(['abc'], 'a.jpg', { type: 'image/jpeg' })
 
-    await uploadMedia(file, 'Title')
+    await uploadMedia(file, 'Title', 12)
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/media')
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'POST' })
+    const form = fetchMock.mock.calls[0]?.[1]?.body as FormData
+    expect(form.get('title')).toBe('Title')
+    expect(form.get('plant_id')).toBe('12')
   })
 
   it('mediaFileUrl returns file endpoint url', () => {

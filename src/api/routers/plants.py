@@ -22,30 +22,33 @@ router = APIRouter(prefix="/plants", tags=["plants"])
 def list_plants_endpoint(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    archived: bool = Query(default=False),
 ) -> PlantListResponse:
-    return list_plants(limit=limit, offset=offset)
+    return list_plants(limit=limit, offset=offset, archived=archived)
 
 
 @router.get("/query", response_model=list[Plant])
 def query_plants_endpoint(
     name_contains: str | None = None,
-    species_id: int | None = None,
+    species_ids: list[int] | None = Query(default=None),
     plant_type_id: int | None = None,
+    archived: bool = Query(default=False),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> list[Plant]:
     return query_plants(
         name_contains=name_contains,
-        species_id=species_id,
+        species_ids=species_ids,
         plant_type_id=plant_type_id,
+        archived=archived,
         limit=limit,
         offset=offset,
     )
 
 
 @router.get("/{plant_id}", response_model=Plant)
-def get_plant_endpoint(plant_id: int) -> Plant:
-    record = get_plant_by_id(plant_id)
+def get_plant_endpoint(plant_id: int, include_deleted: bool = Query(default=False)) -> Plant:
+    record = get_plant_by_id(plant_id, include_deleted=include_deleted)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
     return record

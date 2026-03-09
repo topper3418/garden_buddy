@@ -1,0 +1,72 @@
+[
+  {
+    "filename": "backyard_cherry.jpg",
+    "title": "Backyard Cherry Fruit",
+    "plant_name": "Backyard Cherry",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/tomato"
+  },
+  {
+    "filename": "kitchen_basil.jpg",
+    "title": "Kitchen Basil Leaves",
+    "plant_name": "Kitchen Basil",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/basil"
+  },
+  {
+    "filename": "front_lavender.jpg",
+    "title": "Front Lavender Bloom",
+    "plant_name": "Front Lavender",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/lavender"
+  },
+  {
+    "filename": "patio_mint.jpg",
+    "title": "Patio Mint Cluster",
+    "plant_name": "Patio Mint",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/mint"
+  },
+  {
+    "filename": "pepper_row_a.jpg",
+    "title": "Pepper Row A",
+    "plant_name": "Pepper Row A",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/bell-pepper"
+  },
+  {
+    "filename": "herb_corner.jpg",
+    "title": "Herb Corner Bed",
+    "plant_name": "Herb Corner",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/herb-garden"
+  },
+  {
+    "filename": "rose_trellis.jpg",
+    "title": "Rose Trellis Flower",
+    "plant_name": "Rose Trellis",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/rose"
+  },
+  {
+    "filename": "tomato_row_b.jpg",
+    "title": "Tomato Row B",
+    "plant_name": "Tomato Row B",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/cherry-tomato"
+  },
+  {
+    "filename": "window_basil_2.jpg",
+    "title": "Window Basil Leaves",
+    "plant_name": "Window Basil 2",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/purple-basil"
+  },
+  {
+    "filename": "lavender_border.jpg",
+    "title": "Lavender Border",
+    "plant_name": "Lavender Border",
+    "mime_type": "image/jpeg",
+    "source_url": "https://loremflickr.com/1024/768/lavender-field"
+  }
+]

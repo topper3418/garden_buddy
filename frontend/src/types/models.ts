@@ -10,6 +10,7 @@ export type Species = {
   common_name?: string | null
   notes?: string | null
   parent_species_id?: number | null
+  plant_count: number
   created_at: string
 }
 
@@ -24,6 +25,7 @@ export type SpeciesListItem = {
   id: number
   name: string
   common_name?: string | null
+  plant_count: number
 }
 
 export type PlantType = {
@@ -73,6 +75,7 @@ export type Media = {
   mime_type: string
   size: number
   title?: string | null
+  plant_id?: number | null
   uploaded_at: string
   file_path?: string | null
 }
@@ -82,6 +85,7 @@ export type MediaCreate = {
   mime_type: string
   size: number
   title?: string | null
+  plant_id?: number | null
 }
 
 export type MediaListItem = {
@@ -89,5 +93,6 @@ export type MediaListItem = {
   filename: string
   mime_type: string
   title?: string | null
+  plant_id?: number | null
   file_path?: string | null
 }

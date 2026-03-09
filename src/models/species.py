@@ -35,6 +35,7 @@ class Species(SpeciesCreate):
 
     id: int
     created_at: datetime
+    plant_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -45,6 +46,7 @@ class SpeciesListItem(BaseModel):
     id: int
     name: str
     common_name: str | None = None
+    plant_count: int = 0
 
 
 class SpeciesListResponse(ListResponse[SpeciesListItem]):

@@ -16,12 +16,14 @@ class MediaCreate(BaseModel):
         mime_type: MIME content type of the file (e.g. ``image/jpeg``).
         size: File size in bytes.
         title: Optional human-readable title for the media item.
+        plant_id: Optional associated plant id.
     """
 
     filename: str
     mime_type: str
     size: int
     title: Optional[str] = None
+    plant_id: int | None = None
 
 
 class Media(MediaCreate):
@@ -46,6 +48,7 @@ class MediaListItem(BaseModel):
     filename: str
     title: str | None = None
     mime_type: str
+    plant_id: int | None = None
     file_path: str | None = None
 
 

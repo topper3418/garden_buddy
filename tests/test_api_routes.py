@@ -48,6 +48,7 @@ def test_species_crud_query_and_subspecies_guard(client: TestClient) -> None:
     list_resp = client.get("/species", params={"limit": 10, "offset": 0})
     assert list_resp.status_code == 200
     assert len(list_resp.json()["items"]) == 2
+    assert "plant_count" in list_resp.json()["items"][0]
 
     query_resp = client.get("/species/query", params={"name_contains": "rubiginosa"})
     assert query_resp.status_code == 200
@@ -103,6 +104,11 @@ def test_plants_crud_query_and_type_links(client: TestClient) -> None:
         json={"name": "Solanum lycopersicum", "common_name": "Tomato"},
     ).json()
 
+    species_2 = client.post(
+        "/species",
+        json={"name": "Ocimum basilicum", "common_name": "Basil"},
+    ).json()
+
     type_1 = client.post("/plant-types", json={"name": "annual", "notes": "one season"}).json()
     type_2 = client.post("/plant-types", json={"name": "edible", "notes": "food"}).json()
 
@@ -130,6 +136,24 @@ def test_plants_crud_query_and_type_links(client: TestClient) -> None:
     assert query_resp.status_code == 200
     assert len(query_resp.json()) == 1
 
+    second_plant_resp = client.post(
+        "/plants",
+        json={
+            "name": "Kitchen Basil",
+            "notes": "Countertop pot",
+            "species_id": species_2["id"],
+            "plant_type_ids": [type_1["id"]],
+        },
+    )
+    assert second_plant_resp.status_code == 201
+
+    query_multi_species_resp = client.get(
+        "/plants/query",
+        params=[("species_ids", species["id"]), ("species_ids", species_2["id"])],
+    )
+    assert query_multi_species_resp.status_code == 200
+    assert len(query_multi_species_resp.json()) == 2
+
     patch_resp = client.patch(
         f"/plants/{plant['id']}",
         json={"notes": "Updated note", "plant_type_ids": [type_1["id"]]},
@@ -149,15 +173,45 @@ def test_plants_crud_query_and_type_links(client: TestClient) -> None:
     delete_resp = client.delete(f"/plants/{plant['id']}")
     assert delete_resp.status_code == 204
 
+    get_deleted_resp = client.get(f"/plants/{plant['id']}")
+    assert get_deleted_resp.status_code == 404
+
+    remaining_list_resp = client.get("/plants", params={"limit": 10, "offset": 0})
+    assert remaining_list_resp.status_code == 200
+    assert len(remaining_list_resp.json()["items"]) == 1
+
+    archived_list_resp = client.get("/plants", params={"limit": 10, "offset": 0, "archived": True})
+    assert archived_list_resp.status_code == 200
+    assert len(archived_list_resp.json()["items"]) == 1
+
+    archived_query_resp = client.get("/plants/query", params={"archived": True, "limit": 10, "offset": 0})
+    assert archived_query_resp.status_code == 200
+    assert len(archived_query_resp.json()) == 1
+
 
 def test_media_upload_query_file_and_delete_by_id(client: TestClient) -> None:
+    species_resp = client.post(
+        "/species",
+        json={"name": "Media Species", "common_name": "Media Species Common"},
+    )
+    assert species_resp.status_code == 201
+    species = species_resp.json()
+
+    plant_resp = client.post(
+        "/plants",
+        json={"name": "Media Linked Plant", "notes": "", "species_id": species["id"], "plant_type_ids": []},
+    )
+    assert plant_resp.status_code == 201
+    plant = plant_resp.json()
+
     upload_resp = client.post(
         "/media",
         files={"file": ("leaf.jpg", b"\xff\xd8\xff\xe0testjpeg", "image/jpeg")},
-        data={"title": "Leaf Closeup"},
+        data={"title": "Leaf Closeup", "plant_id": str(plant["id"])},
     )
     assert upload_resp.status_code == 201
     media = upload_resp.json()
+    assert media["plant_id"] == plant["id"]
 
     media_file = settings.media_path / media["filename"]
     assert media_file.exists()
@@ -171,12 +225,35 @@ def test_media_upload_query_file_and_delete_by_id(client: TestClient) -> None:
     assert query_resp.status_code == 200
     assert len(query_resp.json()) == 1
 
+    query_by_plant_resp = client.get("/media/query", params={"name_contains": "Media Linked"})
+    assert query_by_plant_resp.status_code == 200
+    assert len(query_by_plant_resp.json()) == 1
+
+    query_by_species_resp = client.get("/media/query", params={"species_ids": species["id"]})
+    assert query_by_species_resp.status_code == 200
+    assert len(query_by_species_resp.json()) == 1
+
+    type_resp = client.post(
+        "/plant-types",
+        json={"name": "photo-target", "notes": "for media filter"},
+    )
+    assert type_resp.status_code == 201
+    type_id = type_resp.json()["id"]
+
+    attach_type_resp = client.put(f"/plants/{plant['id']}/types/{type_id}")
+    assert attach_type_resp.status_code == 200
+
+    query_by_type_resp = client.get("/media/query", params={"plant_type_id": type_id})
+    assert query_by_type_resp.status_code == 200
+    assert len(query_by_type_resp.json()) == 1
+
     file_resp = client.get(f"/media/{media['id']}/file")
     assert file_resp.status_code == 200
 
-    patch_resp = client.patch(f"/media/{media['id']}", json={"title": "Updated Leaf"})
+    patch_resp = client.patch(f"/media/{media['id']}", json={"title": "Updated Leaf", "plant_id": None})
     assert patch_resp.status_code == 200
     assert patch_resp.json()["title"] == "Updated Leaf"
+    assert patch_resp.json()["plant_id"] is None
 
     delete_resp = client.delete(f"/media/{media['id']}")
     assert delete_resp.status_code == 204
@@ -201,3 +278,35 @@ def test_media_delete_by_filename_endpoint(client: TestClient) -> None:
 
     get_deleted = client.get(f"/media/{media['id']}")
     assert get_deleted.status_code == 404
+
+
+def test_soft_delete_plant_preserves_attached_media(client: TestClient) -> None:
+    plant_resp = client.post(
+        "/plants",
+        json={"name": "Archive Test Plant", "notes": "## Keep this note", "species_id": None, "plant_type_ids": []},
+    )
+    assert plant_resp.status_code == 201
+    plant = plant_resp.json()
+
+    media_resp = client.post(
+        "/media",
+        files={"file": ("archive.jpg", b"\xff\xd8\xff\xe0archive", "image/jpeg")},
+        data={"title": "Archive Link", "plant_id": str(plant["id"])},
+    )
+    assert media_resp.status_code == 201
+    media = media_resp.json()
+    assert media["plant_id"] == plant["id"]
+
+    delete_resp = client.delete(f"/plants/{plant['id']}")
+    assert delete_resp.status_code == 204
+
+    get_deleted_plant = client.get(f"/plants/{plant['id']}")
+    assert get_deleted_plant.status_code == 404
+
+    get_archived_plant = client.get(f"/plants/{plant['id']}", params={"include_deleted": True})
+    assert get_archived_plant.status_code == 200
+    assert get_archived_plant.json()["id"] == plant["id"]
+
+    get_media_resp = client.get(f"/media/{media['id']}")
+    assert get_media_resp.status_code == 200
+    assert get_media_resp.json()["plant_id"] == plant["id"]

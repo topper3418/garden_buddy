@@ -15,12 +15,13 @@ const items: MenuProps['items'] = [
 
 export function AppShell() {
   const location = useLocation()
+  const selectedKey = location.pathname.startsWith('/plants/') ? '/plants' : location.pathname
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider width={240}>
         <div style={{ padding: 16, color: '#fff', fontSize: 18, fontWeight: 600 }}>Garden Buddy</div>
-        <Menu theme='dark' mode='inline' selectedKeys={[location.pathname]} items={items} />
+        <Menu theme='dark' mode='inline' selectedKeys={[selectedKey]} items={items} />
       </Sider>
       <Layout>
         <Header style={{ background: '#fff', padding: '0 20px' }}>
@@ -29,7 +30,7 @@ export function AppShell() {
           </Typography.Title>
         </Header>
         <Content style={{ margin: 16 }}>
-          <div style={{ background: '#fff', minHeight: 'calc(100vh - 112px)', padding: 16, borderRadius: 8 }}>
+          <div style={{ background: '#fff', height: 'calc(100vh - 112px)', overflowY: 'auto', padding: 16, borderRadius: 8 }}>
             <Outlet />
           </div>
         </Content>

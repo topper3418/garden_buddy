@@ -68,7 +68,18 @@ def get_species_by_id(species_id: int) -> Optional[dict]:
     """
     with get_db_connection() as conn:
         row = conn.execute(
-            "SELECT * FROM species WHERE id = ?", (species_id,)
+            """
+            SELECT
+                s.*,
+                (
+                    SELECT COUNT(*)
+                    FROM plants p
+                    WHERE p.species_id = s.id AND p.deleted_at IS NULL
+                ) AS plant_count
+            FROM species s
+            WHERE s.id = ?
+            """,
+            (species_id,),
         ).fetchone()
         return dict(row) if row else None
 
@@ -84,7 +95,17 @@ def get_subspecies(parent_species_id: int) -> list[dict]:
     """
     with get_db_connection() as conn:
         rows = conn.execute(
-            "SELECT * FROM species WHERE parent_species_id = ?",
+            """
+            SELECT
+                s.*,
+                (
+                    SELECT COUNT(*)
+                    FROM plants p
+                    WHERE p.species_id = s.id AND p.deleted_at IS NULL
+                ) AS plant_count
+            FROM species s
+            WHERE s.parent_species_id = ?
+            """,
             (parent_species_id,),
         ).fetchall()
         return [dict(r) for r in rows]
@@ -95,9 +116,17 @@ def list_species(limit: int, offset: int) -> list[dict]:
     with get_db_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, name, common_name
-            FROM species
-            ORDER BY name
+            SELECT
+                s.id,
+                s.name,
+                s.common_name,
+                (
+                    SELECT COUNT(*)
+                    FROM plants p
+                    WHERE p.species_id = s.id AND p.deleted_at IS NULL
+                ) AS plant_count
+            FROM species s
+            ORDER BY s.name
             LIMIT ? OFFSET ?
             """,
             (limit, offset),
@@ -117,13 +146,13 @@ def query_species(
     params: list[Any] = []
 
     if name_contains:
-        clauses.append("name LIKE ?")
+        clauses.append("s.name LIKE ?")
         params.append(f"%{name_contains}%")
     if common_name_contains:
-        clauses.append("common_name LIKE ?")
+        clauses.append("s.common_name LIKE ?")
         params.append(f"%{common_name_contains}%")
     if parent_species_id is not None:
-        clauses.append("parent_species_id = ?")
+        clauses.append("s.parent_species_id = ?")
         params.append(parent_species_id)
 
     where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
@@ -131,10 +160,16 @@ def query_species(
     with get_db_connection() as conn:
         rows = conn.execute(
             f"""
-            SELECT *
-            FROM species
+            SELECT
+                s.*,
+                (
+                    SELECT COUNT(*)
+                    FROM plants p
+                    WHERE p.species_id = s.id AND p.deleted_at IS NULL
+                ) AS plant_count
+            FROM species s
             {where_sql}
-            ORDER BY name
+            ORDER BY s.name
             LIMIT ? OFFSET ?
             """,
             (*params, limit, offset),

@@ -17,6 +17,7 @@ from src.services.media_service import (
     query_media,
     update_media,
 )
+from src.services.plant_service import get_plant_by_id as get_plant_record_by_id
 from src.settings import settings
 
 router = APIRouter(prefix="/media", tags=["media"])
@@ -33,8 +34,12 @@ def list_media_endpoint(
 
 @router.get("/query", response_model=list[Media])
 def query_media_endpoint(
+    name_contains: str | None = None,
     title_contains: str | None = None,
     mime_type: str | None = None,
+    plant_id: int | None = None,
+    species_ids: list[int] | None = Query(default=None),
+    plant_type_id: int | None = None,
     min_size: int | None = Query(default=None, ge=0),
     max_size: int | None = Query(default=None, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
@@ -42,8 +47,12 @@ def query_media_endpoint(
     include_file_path: bool = False,
 ) -> list[Media]:
     return query_media(
+        name_contains=name_contains,
         title_contains=title_contains,
         mime_type=mime_type,
+        plant_id=plant_id,
+        species_ids=species_ids,
+        plant_type_id=plant_type_id,
         min_size=min_size,
         max_size=max_size,
         limit=limit,
@@ -72,7 +81,11 @@ def get_media_file_endpoint(media_id: int) -> FileResponse:
 async def upload_media_endpoint(
     file: UploadFile = File(...),
     title: str | None = Form(default=None),
+    plant_id: int | None = Form(default=None),
 ) -> Media:
+    if plant_id is not None and not get_plant_record_by_id(plant_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
+
     unique_filename = await save_image(file)
     file_path = Path(settings.media_path) / unique_filename
 
@@ -81,6 +94,7 @@ async def upload_media_endpoint(
         title=title,
         mime_type=file.content_type or "application/octet-stream",
         size=file_path.stat().st_size,
+        plant_id=plant_id,
     )
     return create_media(payload)
 
@@ -94,6 +108,11 @@ def update_media_endpoint(media_id: int, payload: MediaUpdate) -> Media:
         kwargs["mime_type"] = payload.mime_type
     if "size" in payload.model_fields_set:
         kwargs["size"] = payload.size
+    if "plant_id" in payload.model_fields_set:
+        kwargs["plant_id"] = payload.plant_id
+
+    if "plant_id" in kwargs and kwargs["plant_id"] is not None and not get_plant_record_by_id(kwargs["plant_id"]):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
 
     updated = update_media(media_id, **kwargs)
     if not updated:

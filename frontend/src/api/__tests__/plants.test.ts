@@ -19,22 +19,22 @@ afterEach(() => {
 describe('plants api module', () => {
   it('listPlants calls list endpoint', async () => {
     const fetchMock = mockFetchJson({ items: [], limit: 50, offset: 0 })
-    await listPlants(50, 0)
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/plants?limit=50&offset=0')
+    await listPlants(50, 0, false)
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/plants?limit=50&offset=0&archived=false')
   })
 
   it('queryPlants maps filters to querystring', async () => {
     const fetchMock = mockFetchJson([])
-    await queryPlants({ nameContains: 'tomato', speciesId: 1, plantTypeId: 2, limit: 25, offset: 4 })
+    await queryPlants({ nameContains: 'tomato', speciesIds: [1, 3], plantTypeId: 2, archived: true, limit: 25, offset: 4 })
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/plants/query?name_contains=tomato&species_id=1&plant_type_id=2&limit=25&offset=4',
+      'http://localhost:8000/plants/query?name_contains=tomato&species_ids=1&species_ids=3&plant_type_id=2&archived=true&limit=25&offset=4',
     )
   })
 
   it('get/create/update/delete functions map to expected endpoints', async () => {
     const getMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', plant_type_ids: [], plant_types: [] })
-    await getPlantById(1)
-    expect(getMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1')
+    await getPlantById(1, true)
+    expect(getMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1?include_deleted=true')
 
     const createMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', plant_type_ids: [], plant_types: [] })
     await createPlant({ name: 'Plant', plant_type_ids: [] })
@@ -72,6 +72,6 @@ describe('plants api module', () => {
     await removeTypeFromPlant(1, 2)
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1/types/2')
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('http://localhost:8000/plants/1')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('http://localhost:8000/plants/1?include_deleted=false')
   })
 })

@@ -1,8 +1,9 @@
 import { deleteRequest, getJson, patchJson, postJson } from './http'
+import { clampQueryLimit } from './limits'
 import type { ListResponse, Species, SpeciesCreate, SpeciesListItem } from '../types/models'
 
 export function listSpecies(limit = 50, offset = 0): Promise<ListResponse<SpeciesListItem>> {
-  return getJson<ListResponse<SpeciesListItem>>(`/species?limit=${limit}&offset=${offset}`)
+  return getJson<ListResponse<SpeciesListItem>>(`/species?limit=${clampQueryLimit(limit)}&offset=${offset}`)
 }
 
 export function querySpecies(params: {
@@ -16,7 +17,7 @@ export function querySpecies(params: {
   if (params.nameContains) query.set('name_contains', params.nameContains)
   if (params.commonNameContains) query.set('common_name_contains', params.commonNameContains)
   if (params.parentSpeciesId !== undefined) query.set('parent_species_id', String(params.parentSpeciesId))
-  query.set('limit', String(params.limit ?? 50))
+  query.set('limit', String(clampQueryLimit(params.limit)))
   query.set('offset', String(params.offset ?? 0))
 
   return getJson<Species[]>(`/species/query?${query.toString()}`)

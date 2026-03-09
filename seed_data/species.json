@@ -1,0 +1,68 @@
+[
+  {
+    "name": "Rosa rubiginosa",
+    "common_name": "Sweet Briar",
+    "notes": "Seeded root species"
+  },
+  {
+    "name": "Solanum lycopersicum",
+    "common_name": "Tomato",
+    "notes": "Seeded root species"
+  },
+  {
+    "name": "Ocimum basilicum",
+    "common_name": "Basil",
+    "notes": "Seeded root species"
+  },
+  {
+    "name": "Lavandula angustifolia",
+    "common_name": "Lavender",
+    "notes": "Seeded root species"
+  },
+  {
+    "name": "Mentha spicata",
+    "common_name": "Spearmint",
+    "notes": "Seeded root species"
+  },
+  {
+    "name": "Capsicum annuum",
+    "common_name": "Bell Pepper",
+    "notes": "Seeded root species"
+  },
+  {
+    "name": "Rosa rubiginosa var. alba",
+    "common_name": "White Sweet Briar",
+    "notes": "Seeded subspecies",
+    "parent_name": "Rosa rubiginosa"
+  },
+  {
+    "name": "Solanum lycopersicum var. cerasiforme",
+    "common_name": "Cherry Tomato",
+    "notes": "Seeded subspecies",
+    "parent_name": "Solanum lycopersicum"
+  },
+  {
+    "name": "Ocimum basilicum var. purpurascens",
+    "common_name": "Purple Basil",
+    "notes": "Seeded subspecies",
+    "parent_name": "Ocimum basilicum"
+  },
+  {
+    "name": "Lavandula angustifolia var. hidcote",
+    "common_name": "Hidcote Lavender",
+    "notes": "Seeded subspecies",
+    "parent_name": "Lavandula angustifolia"
+  },
+  {
+    "name": "Mentha spicata var. crispa",
+    "common_name": "Curly Spearmint",
+    "notes": "Seeded subspecies",
+    "parent_name": "Mentha spicata"
+  },
+  {
+    "name": "Capsicum annuum var. grossum",
+    "common_name": "Sweet Pepper",
+    "notes": "Seeded subspecies",
+    "parent_name": "Capsicum annuum"
+  }
+]
