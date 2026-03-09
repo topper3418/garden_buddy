@@ -9,11 +9,54 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+normalize_route() {
+  local raw="$1"
+  raw="$(printf '%s' "$raw" | tr -d '[:space:]')"
+
+  if [[ -z "$raw" || "$raw" == "/" ]]; then
+    printf '/\n'
+    return
+  fi
+
+  if [[ "$raw" != /* ]]; then
+    raw="/$raw"
+  fi
+  if [[ "$raw" != */ ]]; then
+    raw="$raw/"
+  fi
+
+  raw="$(printf '%s' "$raw" | sed -E 's#/+#/#g')"
+  if [[ "$raw" =~ [\?#] ]]; then
+    echo "Route must be a clean path prefix (no query or fragment)." >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$raw"
+}
+
 APP_DIR="${APP_DIR:-${REPO_DIR}}"
 APP_USER="${APP_USER:-${SUDO_USER:-$(id -un)}}"
 APP_GROUP="${APP_GROUP:-$(id -gn "${APP_USER}")}"
 SERVICE_NAME="${SERVICE_NAME:-garden-buddy}"
 SERVER_NAME="${SERVER_NAME:-_}"
+APP_ROUTE_INPUT="${APP_ROUTE:-}"
+
+if [[ -z "${APP_ROUTE_INPUT}" && -t 0 ]]; then
+  read -r -p "Route prefix for app (blank for '/'; example '/garden/'): " APP_ROUTE_INPUT
+fi
+
+APP_ROUTE="$(normalize_route "${APP_ROUTE_INPUT}")"
+
+if [[ "${APP_ROUTE}" == "/" ]]; then
+  API_ROUTE="/api/"
+  API_BASE_URL="/api"
+  FRONTEND_FALLBACK="index.html"
+else
+  API_ROUTE="${APP_ROUTE}api/"
+  API_BASE_URL="${APP_ROUTE}api"
+  FRONTEND_FALLBACK="${APP_ROUTE#/}index.html"
+fi
+
 ENV_DIR="/etc/garden-buddy"
 ENV_FILE="${ENV_DIR}/garden-buddy.env"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
@@ -55,7 +98,7 @@ if [[ -f "${APP_DIR}/frontend/package-lock.json" ]]; then
 else
   sudo -u "${APP_USER}" npm install --prefix "${APP_DIR}/frontend"
 fi
-sudo -u "${APP_USER}" env VITE_API_BASE_URL=/api npm run build --prefix "${APP_DIR}/frontend"
+sudo -u "${APP_USER}" env VITE_API_BASE_URL="${API_BASE_URL}" npm run build --prefix "${APP_DIR}/frontend" -- --base "${APP_ROUTE}"
 
 echo "[5/8] Creating environment file (if missing)..."
 mkdir -p "${ENV_DIR}"
@@ -76,10 +119,13 @@ sed \
 sed \
   -e "s|__APP_DIR__|${APP_DIR}|g" \
   -e "s|__SERVER_NAME__|${SERVER_NAME}|g" \
+  -e "s|__APP_ROUTE__|${APP_ROUTE}|g" \
+  -e "s|__API_ROUTE__|${API_ROUTE}|g" \
+  -e "s|__FRONTEND_FALLBACK__|${FRONTEND_FALLBACK}|g" \
   "${SCRIPT_DIR}/garden-buddy.nginx.conf.template" > "${NGINX_AVAILABLE}"
 
 ln -sfn "${NGINX_AVAILABLE}" "${NGINX_ENABLED}"
-if [[ -e /etc/nginx/sites-enabled/default ]]; then
+if [[ "${APP_ROUTE}" == "/" && "${SERVER_NAME}" == "_" && -e /etc/nginx/sites-enabled/default ]]; then
   rm -f /etc/nginx/sites-enabled/default
 fi
 
@@ -98,7 +144,7 @@ if ! curl -fsS http://127.0.0.1:8000/health >/dev/null; then
   exit 1
 fi
 
-if ! curl -fsS http://127.0.0.1/ >/dev/null; then
+if ! curl -fsS "http://127.0.0.1${APP_ROUTE}" >/dev/null; then
   echo "Warning: nginx frontend check failed. Check logs with:"
   echo "  journalctl -u nginx -n 200 --no-pager"
   exit 1
@@ -107,6 +153,9 @@ fi
 HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 echo
 echo "Garden Buddy deployment complete."
-echo "App URL: http://${HOST_IP:-<server-ip>}"
+echo "App URL: http://${HOST_IP:-<server-ip>}${APP_ROUTE}"
+echo "Route prefix: ${APP_ROUTE}"
+echo "API base URL for frontend build: ${API_BASE_URL}"
+echo "Seed script was NOT run automatically. Start is fresh/unseeded by default."
 echo "Server name configured for nginx: ${SERVER_NAME}"
 echo "Service status: systemctl status ${SERVICE_NAME}"
