@@ -1,6 +1,7 @@
 import { Card, Image, Typography } from 'antd'
 
 import { mediaFileUrl } from '../api/media'
+import { useIsMobile } from '../hooks/useIsMobile'
 import type { Media } from '../types/models'
 
 type MediaCardProps = {
@@ -19,11 +20,12 @@ function formatTakenDate(value: string): string {
 
 export function MediaCard({ media, mode, onNavigateToPlant }: MediaCardProps) {
   const canNavigate = mode === 'navigate' && media.plant_id !== null && media.plant_id !== undefined
+  const isMobile = useIsMobile()
 
   return (
     <Card
       hoverable={canNavigate || mode === 'expand'}
-      style={{ width: 240 }}
+      style={{ width: isMobile ? '100%' : 240, maxWidth: 320 }}
       onClick={() => {
         if (canNavigate && media.plant_id !== null && media.plant_id !== undefined) {
           onNavigateToPlant?.(media.plant_id)
@@ -33,7 +35,7 @@ export function MediaCard({ media, mode, onNavigateToPlant }: MediaCardProps) {
         <Image
           src={mediaFileUrl(media.id)}
           alt={media.title ?? media.filename}
-          height={180}
+          height={isMobile ? 200 : 180}
           style={{ objectFit: 'cover' }}
           preview={mode === 'expand'}
           fallback='data:image/gif;base64,R0lGODlhAQABAAAAACw='

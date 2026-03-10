@@ -3,6 +3,7 @@ import { Spin } from 'antd'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppShell } from './components/AppShell'
+import './App.css'
 
 const DashboardPage = lazy(async () => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const SpeciesPage = lazy(async () => import('./pages/SpeciesPage').then((module) => ({ default: module.SpeciesPage })))

@@ -1,0 +1,79 @@
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-shell__sider {
+  box-shadow: 2px 0 14px rgba(16, 24, 40, 0.1);
+}
+
+.app-shell__brand {
+  padding: 16px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.app-shell__header {
+  background: #fff;
+  padding: 0 20px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-shell__header-title {
+  margin: 0;
+  line-height: 64px;
+}
+
+.app-shell__content {
+  margin: 16px;
+}
+
+.app-shell__content-card {
+  background: #fff;
+  min-height: calc(100vh - 112px);
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.app-shell__mobile-menu-button {
+  display: none;
+}
+
+.app-shell__mobile-drawer .ant-drawer-body {
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .app-shell__sider {
+    display: none;
+  }
+
+  .app-shell__mobile-menu-button {
+    display: inline-flex;
+  }
+
+  .app-shell__header {
+    padding: 0 12px;
+  }
+
+  .app-shell__header-title {
+    line-height: 56px;
+    font-size: 18px;
+  }
+
+  .app-shell__content {
+    margin: 10px;
+  }
+
+  .app-shell__content-card {
+    min-height: calc(100vh - 96px);
+    padding: 12px;
+    border-radius: 10px;
+  }
+}

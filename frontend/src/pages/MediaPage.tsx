@@ -8,6 +8,7 @@ import { queryMedia } from '../api/media'
 import { MediaCard } from '../components/MediaCard'
 import { listPlantTypes } from '../api/plantTypes'
 import { querySpecies } from '../api/species'
+import { useIsMobile } from '../hooks/useIsMobile'
 import type { Media, PlantTypeListItem, Species } from '../types/models'
 
 type SpeciesTreeOption = {
@@ -57,6 +58,7 @@ function buildSpeciesTree(species: Species[]): SpeciesTreeOption[] {
 
 export function MediaPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<Media[]>([])
   const [speciesOptions, setSpeciesOptions] = useState<Species[]>([])
@@ -140,7 +142,11 @@ export function MediaPage() {
 
   return (
     <>
-      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
+      <Space
+        wrap
+        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}
+        direction={isMobile ? 'vertical' : 'horizontal'}
+      >
         <Typography.Title level={3} style={{ margin: 0 }}>Media</Typography.Title>
         <Button
           icon={<FilterOutlined />}
@@ -170,8 +176,8 @@ export function MediaPage() {
         )}
       </Space>
 
-      <div style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', paddingRight: 8 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignContent: 'flex-start' }}>
+      <div style={{ maxHeight: isMobile ? 'none' : 'calc(100vh - 280px)', overflowY: 'auto', paddingRight: isMobile ? 0 : 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignContent: 'flex-start', justifyContent: isMobile ? 'center' : 'flex-start' }}>
           {items.map((item) => (
             <MediaCard
               key={item.id}

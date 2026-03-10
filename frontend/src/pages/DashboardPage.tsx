@@ -7,10 +7,12 @@ import { MediaCard } from '../components/MediaCard'
 import { listPlants, queryPlants } from '../api/plants'
 import { listPlantTypes } from '../api/plantTypes'
 import { listSpecies } from '../api/species'
+import { useIsMobile } from '../hooks/useIsMobile'
 import type { Media, Plant } from '../types/models'
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [counts, setCounts] = useState({ species: 0, plantTypes: 0, plants: 0, media: 0 })
   const [recentMedia, setRecentMedia] = useState<Media[]>([])
   const [recentPlants, setRecentPlants] = useState<Plant[]>([])
@@ -42,24 +44,24 @@ export function DashboardPage() {
   return (
     <>
       <Typography.Title level={3}>Dashboard</Typography.Title>
-      <Row gutter={16}>
-        <Col span={6}>
+      <Row gutter={[12, 12]}>
+        <Col xs={12} sm={12} md={6}>
           <Card><Statistic title='Species' value={counts.species} /></Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card><Statistic title='Plant Types' value={counts.plantTypes} /></Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card><Statistic title='Plants' value={counts.plants} /></Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card><Statistic title='Media Items' value={counts.media} /></Card>
         </Col>
       </Row>
 
       <Row gutter={16} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
-          <Card title='Most Recently Updated Plants' styles={{ body: { height: 420, overflowY: 'auto' } }}>
+          <Card title='Most Recently Updated Plants' styles={{ body: { maxHeight: isMobile ? 360 : 420, overflowY: 'auto' } }}>
             <List
               dataSource={recentPlants}
               renderItem={(item) => (
@@ -74,7 +76,7 @@ export function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card title='Most Recent Photos' styles={{ body: { height: 420, overflowY: 'auto' } }}>
+          <Card title='Most Recent Photos' styles={{ body: { maxHeight: isMobile ? 380 : 420, overflowY: 'auto' } }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignContent: 'flex-start' }}>
               {recentMedia.map((item) => (
                 <MediaCard

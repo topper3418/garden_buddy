@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { createPlantType, deletePlantType, listPlantTypes, updatePlantType } from '../api/plantTypes'
+import { useIsMobile } from '../hooks/useIsMobile'
 import type { PlantType, PlantTypeCreate, PlantTypeListItem } from '../types/models'
 
 export function PlantTypesPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [items, setItems] = useState<PlantTypeListItem[]>([])
   const [isModalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PlantType | null>(null)
@@ -38,7 +40,11 @@ export function PlantTypesPage() {
 
   return (
     <>
-      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
+      <Space
+        wrap
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}
+      >
         <Typography.Title level={3} style={{ margin: 0 }}>Plant Types</Typography.Title>
         <Button type='primary' onClick={() => setModalOpen(true)}>New Plant Type</Button>
       </Space>
@@ -46,6 +52,8 @@ export function PlantTypesPage() {
       <Table
         rowKey='id'
         dataSource={items}
+        size={isMobile ? 'small' : 'middle'}
+        scroll={{ x: 640 }}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
@@ -57,7 +65,7 @@ export function PlantTypesPage() {
           {
             title: 'Actions',
             render: (_, row) => (
-              <Space>
+              <Space wrap>
                 <Button size='small' onClick={() => navigate(`/plants?plantTypeId=${row.id}`)}>
                   View Plants
                 </Button>

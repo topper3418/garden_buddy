@@ -1,7 +1,11 @@
-import { AppstoreOutlined, CameraOutlined, TagsOutlined } from '@ant-design/icons'
-import { Layout, Menu, Typography } from 'antd'
+import { AppstoreOutlined, CameraOutlined, MenuOutlined, TagsOutlined } from '@ant-design/icons'
+import { Button, Drawer, Layout, Menu, Typography } from 'antd'
 import type { MenuProps } from 'antd'
+import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
+
+import { useIsMobile } from '../hooks/useIsMobile'
+import './AppShell.css'
 
 const { Header, Content, Sider } = Layout
 
@@ -15,26 +19,61 @@ const items: MenuProps['items'] = [
 
 export function AppShell() {
   const location = useLocation()
+  const isMobile = useIsMobile()
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const selectedKey = location.pathname.startsWith('/plants/') ? '/plants' : location.pathname
 
+  const menu = (
+    <Menu
+      theme='dark'
+      mode='inline'
+      selectedKeys={[selectedKey]}
+      items={items}
+      onClick={() => setDrawerOpen(false)}
+    />
+  )
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={240}>
-        <div style={{ padding: 16, color: '#fff', fontSize: 18, fontWeight: 600 }}>Garden Buddy</div>
-        <Menu theme='dark' mode='inline' selectedKeys={[selectedKey]} items={items} />
-      </Sider>
+    <Layout className='app-shell'>
+      {!isMobile && (
+        <Sider width={240} className='app-shell__sider'>
+          <div className='app-shell__brand'>Garden Buddy</div>
+          {menu}
+        </Sider>
+      )}
       <Layout>
-        <Header style={{ background: '#fff', padding: '0 20px' }}>
-          <Typography.Title level={4} style={{ margin: 0, lineHeight: '64px' }}>
+        <Header className='app-shell__header'>
+          <Typography.Title level={4} className='app-shell__header-title'>
             API Control Panel
           </Typography.Title>
+          {isMobile && (
+            <Button
+              className='app-shell__mobile-menu-button'
+              icon={<MenuOutlined />}
+              onClick={() => setDrawerOpen(true)}
+              aria-label='Open navigation menu'
+            />
+          )}
         </Header>
-        <Content style={{ margin: 16 }}>
-          <div style={{ background: '#fff', height: 'calc(100vh - 112px)', overflowY: 'auto', padding: 16, borderRadius: 8 }}>
+        <Content className='app-shell__content'>
+          <div className='app-shell__content-card'>
             <Outlet />
           </div>
         </Content>
       </Layout>
+      {isMobile && (
+        <Drawer
+          className='app-shell__mobile-drawer'
+          title='Garden Buddy'
+          placement='left'
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          width={264}
+          styles={{ body: { background: '#001529' } }}
+        >
+          {menu}
+        </Drawer>
+      )}
     </Layout>
   )
 }

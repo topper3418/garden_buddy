@@ -11,10 +11,12 @@ import { NotesEditor } from '../components/NotesEditor'
 import { deletePlant, getPlantById, updatePlant } from '../api/plants'
 import { listPlantTypes } from '../api/plantTypes'
 import { querySpecies } from '../api/species'
+import { useIsMobile } from '../hooks/useIsMobile'
 import type { Media, Plant, PlantCreate, PlantTypeListItem, Species } from '../types/models'
 
 export function PlantDetailPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const { plantId } = useParams<{ plantId: string }>()
   const parsedPlantId = Number(plantId)
 
@@ -85,7 +87,7 @@ export function PlantDetailPage() {
 
   return (
     <Space direction='vertical' size={16} style={{ width: '100%' }}>
-      <Space>
+      <Space wrap>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/plants')}>
           Back to Plants
         </Button>
@@ -163,7 +165,7 @@ export function PlantDetailPage() {
         {mediaItems.length === 0 ? (
           <Typography.Text type='secondary'>No media attached to this plant yet.</Typography.Text>
         ) : (
-          <div style={{ maxHeight: 420, overflowY: 'auto', paddingRight: 8 }}>
+          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: 'auto', paddingRight: isMobile ? 0 : 8 }}>
             <Row gutter={[16, 16]}>
               {mediaItems.map((item) => (
                 <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
@@ -195,7 +197,7 @@ export function PlantDetailPage() {
           setEditModalOpen(false)
           await loadData()
         }}
-        width={860}
+        width={isMobile ? '100%' : 860}
       >
         <Form form={form} layout='vertical'>
           <Form.Item label='Name' name='name' rules={[{ required: true }]}> 

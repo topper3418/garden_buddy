@@ -44,10 +44,37 @@ sudo APP_USER=$USER bash server/install.sh
 ## Files
 
 - `install.sh`: single-command installer
+- `update.sh`: pull/rebuild/restart updater for existing installs
 - `uninstall.sh`: cleanup script for full/partial installs
 - `garden-buddy.service.template`: systemd unit template
 - `garden-buddy.nginx.conf.template`: nginx site template
 - `garden-buddy.env.template`: backend environment template
+
+## Update Existing Install
+
+Run from the repo root:
+
+```bash
+sudo bash server/update.sh
+```
+
+What it does:
+
+- Pulls latest git changes with `git pull --ff-only`
+- Refreshes backend Python dependencies in `venv`
+- Installs frontend dependencies and rebuilds assets
+- Publishes built frontend files to nginx static directory
+- Restarts `garden-buddy` and `nginx`
+- Runs backend and frontend health checks
+
+Useful overrides:
+
+- `SKIP_GIT_PULL=true` to skip git pull (useful for local testing)
+- `APP_ROUTE=/garden/` to override detected route prefix
+- `APP_USER=ubuntu` if git/dependency commands must run as a specific user
+- `STATIC_DIR=/var/www/garden-buddy` for custom static publish target
+- `SERVICE_NAME=garden-buddy` for custom systemd/nginx naming
+- `HEALTH_RETRIES=40` and `HEALTH_DELAY_SECONDS=1` to tune post-restart health wait window
 
 ## Notes
 

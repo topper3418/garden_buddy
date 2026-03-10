@@ -8,6 +8,7 @@ import { API_QUERY_LIMIT_MAX, clampQueryLimit } from '../api/limits'
 import { createPlant, deletePlant, queryPlants, updatePlant } from '../api/plants'
 import { listPlantTypes } from '../api/plantTypes'
 import { querySpecies } from '../api/species'
+import { useIsMobile } from '../hooks/useIsMobile'
 import type { Plant, PlantCreate, PlantTypeListItem, Species } from '../types/models'
 
 type SpeciesTreeOption = {
@@ -57,6 +58,7 @@ function buildSpeciesTree(species: Species[]): SpeciesTreeOption[] {
 
 export function PlantsPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<Plant[]>([])
   const [speciesOptions, setSpeciesOptions] = useState<Species[]>([])
@@ -173,9 +175,13 @@ export function PlantsPage() {
 
   return (
     <>
-      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
+      <Space
+        wrap
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}
+      >
         <Typography.Title level={3} style={{ margin: 0 }}>Plants</Typography.Title>
-        <Space>
+        <Space wrap>
           <Button
             icon={<FilterOutlined />}
             onClick={() => {
@@ -211,6 +217,8 @@ export function PlantsPage() {
       <Table
         rowKey='id'
         dataSource={items}
+        size={isMobile ? 'small' : 'middle'}
+        scroll={{ x: 920 }}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
@@ -235,7 +243,7 @@ export function PlantsPage() {
           {
             title: 'Actions',
             render: (_, row) => (
-              <Space>
+              <Space wrap>
                 <Button
                   size='small'
                   onClick={(event) => {
@@ -277,7 +285,7 @@ export function PlantsPage() {
           form.resetFields()
         }}
         onOk={() => void onSubmit()}
-        width={720}
+        width={isMobile ? '100%' : 720}
       >
         <Form form={form} layout='vertical'>
           <Form.Item label='Name' name='name' rules={[{ required: true }]}> 
@@ -335,7 +343,7 @@ export function PlantsPage() {
           <Form.Item label='Show Archived' name='archived' valuePropName='checked'>
             <Switch />
           </Form.Item>
-          <Space style={{ width: '100%' }}>
+          <Space wrap style={{ width: '100%' }}>
             <Form.Item label='Limit' name='limit' style={{ flex: 1 }}>
               <InputNumber min={1} max={API_QUERY_LIMIT_MAX} style={{ width: '100%' }} />
             </Form.Item>
