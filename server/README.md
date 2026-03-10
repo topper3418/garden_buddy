@@ -15,6 +15,10 @@ The installer prompts for a route prefix.
 
 - Leave it blank to serve at `/` on port 80.
 - Enter something like `/garden/` to serve under a path prefix.
+- If that route is already present in nginx config, install stops and offers:
+	- choose a new route,
+	- run `server/uninstall.sh`, or
+	- cancel.
 
 You can also skip the prompt by passing `APP_ROUTE`:
 

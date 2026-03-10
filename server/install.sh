@@ -34,6 +34,92 @@ normalize_route() {
   printf '%s\n' "$raw"
 }
 
+set_route_dependent_settings() {
+  if [[ "${APP_ROUTE}" == "/" ]]; then
+    API_ROUTE="/api/"
+    API_BASE_URL="/api"
+    FRONTEND_FALLBACK="index.html"
+  else
+    API_ROUTE="${APP_ROUTE}api/"
+    API_BASE_URL="${APP_ROUTE}api"
+    FRONTEND_FALLBACK="${APP_ROUTE#/}index.html"
+  fi
+}
+
+find_route_conflicts() {
+  local route="$1"
+  local conf
+
+  shopt -s nullglob
+  for conf in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
+    [[ -f "${conf}" ]] || continue
+
+    while read -r location_path; do
+      [[ -z "${location_path}" ]] && continue
+      if [[ "${location_path}" != "${route}" ]]; then
+        continue
+      fi
+
+      # Allow install at '/' when only the stock default site owns '/'.
+      if [[ "${route}" == "/" && "${SERVER_NAME}" == "_" && "${conf}" == "/etc/nginx/sites-enabled/default" ]]; then
+        continue
+      fi
+
+      printf '%s\n' "${conf}"
+      break
+    done < <(awk '$1 == "location" { gsub(/\{/, "", $2); print $2 }' "${conf}")
+  done
+  shopt -u nullglob
+}
+
+resolve_route_conflict() {
+  local -a conflicts=("$@")
+
+  echo
+  echo "Route '${APP_ROUTE}' is already in use by nginx:"
+  for conf in "${conflicts[@]}"; do
+    echo "  - ${conf}"
+  done
+
+  if [[ ! -t 0 ]]; then
+    echo "Install cancelled because APP_ROUTE conflicts with an existing nginx route."
+    echo "Set APP_ROUTE to a new value or run: sudo bash server/uninstall.sh"
+    exit 1
+  fi
+
+  while true; do
+    echo
+    echo "Choose an action:"
+    echo "  1) Select a new route"
+    echo "  2) Run uninstall script now (server/uninstall.sh)"
+    echo "  3) Cancel install"
+    read -r -p "Selection (1/2/3): " selection
+
+    case "${selection}" in
+      1)
+        read -r -p "New route prefix (blank for '/'): " APP_ROUTE_INPUT
+        APP_ROUTE="$(normalize_route "${APP_ROUTE_INPUT}")"
+        set_route_dependent_settings
+        return
+        ;;
+      2)
+        read -r -p "Run uninstall now? [y/N]: " confirm_uninstall
+        if [[ "${confirm_uninstall}" =~ ^[Yy]$ ]]; then
+          bash "${SCRIPT_DIR}/uninstall.sh"
+          return
+        fi
+        ;;
+      3)
+        echo "Install cancelled by user."
+        exit 1
+        ;;
+      *)
+        echo "Invalid selection. Please enter 1, 2, or 3."
+        ;;
+    esac
+  done
+}
+
 APP_DIR="${APP_DIR:-${REPO_DIR}}"
 APP_USER="${APP_USER:-${SUDO_USER:-$(id -un)}}"
 APP_GROUP_INPUT="${APP_GROUP:-}"
@@ -47,22 +133,22 @@ if [[ -z "${APP_ROUTE_INPUT}" && -t 0 ]]; then
 fi
 
 APP_ROUTE="$(normalize_route "${APP_ROUTE_INPUT}")"
-
-if [[ "${APP_ROUTE}" == "/" ]]; then
-  API_ROUTE="/api/"
-  API_BASE_URL="/api"
-  FRONTEND_FALLBACK="index.html"
-else
-  API_ROUTE="${APP_ROUTE}api/"
-  API_BASE_URL="${APP_ROUTE}api"
-  FRONTEND_FALLBACK="${APP_ROUTE#/}index.html"
-fi
+set_route_dependent_settings
 
 ENV_DIR="/etc/garden-buddy"
 ENV_FILE="${ENV_DIR}/garden-buddy.env"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 NGINX_AVAILABLE="/etc/nginx/sites-available/${SERVICE_NAME}.conf"
 NGINX_ENABLED="/etc/nginx/sites-enabled/${SERVICE_NAME}.conf"
+
+while true; do
+  mapfile -t route_conflicts < <(find_route_conflicts "${APP_ROUTE}")
+  if [[ "${#route_conflicts[@]}" -eq 0 ]]; then
+    break
+  fi
+
+  resolve_route_conflict "${route_conflicts[@]}"
+done
 
 if ! command -v apt-get >/dev/null 2>&1; then
   echo "This installer currently supports Debian/Ubuntu (apt-get) only."
