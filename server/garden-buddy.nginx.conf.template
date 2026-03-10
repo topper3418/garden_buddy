@@ -14,7 +14,7 @@ server {
     }
 
     location __APP_ROUTE__ {
-        alias __APP_DIR__/frontend/dist/;
+        alias __STATIC_DIR__/;
         try_files $uri $uri/ /__FRONTEND_FALLBACK__;
     }
 }

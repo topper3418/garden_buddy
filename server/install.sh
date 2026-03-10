@@ -36,8 +36,9 @@ normalize_route() {
 
 APP_DIR="${APP_DIR:-${REPO_DIR}}"
 APP_USER="${APP_USER:-${SUDO_USER:-$(id -un)}}"
-APP_GROUP="${APP_GROUP:-$(id -gn "${APP_USER}")}"
+APP_GROUP_INPUT="${APP_GROUP:-}"
 SERVICE_NAME="${SERVICE_NAME:-garden-buddy}"
+STATIC_DIR="${STATIC_DIR:-/var/www/${SERVICE_NAME}}"
 SERVER_NAME="${SERVER_NAME:-_}"
 APP_ROUTE_INPUT="${APP_ROUTE:-}"
 
@@ -68,7 +69,7 @@ if ! command -v apt-get >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[1/8] Installing system dependencies..."
+echo "[1/9] Installing system dependencies..."
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   python3 \
@@ -78,21 +79,28 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
   nodejs \
   npm
 
-echo "[2/8] Preparing app directories..."
+echo "[2/9] Preparing app directories..."
 if ! id "${APP_USER}" >/dev/null 2>&1; then
   useradd --system --create-home --shell /bin/bash "${APP_USER}"
 fi
+
+if [[ -n "${APP_GROUP_INPUT}" ]]; then
+  APP_GROUP="${APP_GROUP_INPUT}"
+else
+  APP_GROUP="$(id -gn "${APP_USER}")"
+fi
+
 mkdir -p "${APP_DIR}/data/logs" "${APP_DIR}/data/media"
 chown -R "${APP_USER}:${APP_GROUP}" "${APP_DIR}/data"
 
-echo "[3/8] Creating and populating Python virtual environment..."
+echo "[3/9] Creating and populating Python virtual environment..."
 if [[ ! -d "${APP_DIR}/venv" ]]; then
   sudo -u "${APP_USER}" python3 -m venv "${APP_DIR}/venv"
 fi
 sudo -u "${APP_USER}" "${APP_DIR}/venv/bin/pip" install --upgrade pip
 sudo -u "${APP_USER}" "${APP_DIR}/venv/bin/pip" install -r "${APP_DIR}/requirements.txt"
 
-echo "[4/8] Installing frontend dependencies and building assets..."
+echo "[4/9] Installing frontend dependencies and building assets..."
 if [[ -f "${APP_DIR}/frontend/package-lock.json" ]]; then
   sudo -u "${APP_USER}" npm ci --prefix "${APP_DIR}/frontend"
 else
@@ -100,7 +108,18 @@ else
 fi
 sudo -u "${APP_USER}" env VITE_API_BASE_URL="${API_BASE_URL}" npm run build --prefix "${APP_DIR}/frontend" -- --base "${APP_ROUTE}"
 
-echo "[5/8] Creating environment file (if missing)..."
+echo "[5/9] Publishing frontend assets for nginx..."
+if [[ "${STATIC_DIR}" == "/" ]]; then
+  echo "STATIC_DIR cannot be '/'"
+  exit 1
+fi
+mkdir -p "${STATIC_DIR}"
+rm -rf "${STATIC_DIR:?}"/*
+cp -a "${APP_DIR}/frontend/dist/." "${STATIC_DIR}/"
+chown -R root:root "${STATIC_DIR}"
+chmod -R a+rX "${STATIC_DIR}"
+
+echo "[6/9] Creating environment file (if missing)..."
 mkdir -p "${ENV_DIR}"
 if [[ ! -f "${ENV_FILE}" ]]; then
   cp "${SCRIPT_DIR}/garden-buddy.env.template" "${ENV_FILE}"
@@ -108,7 +127,7 @@ fi
 chown root:"${APP_GROUP}" "${ENV_FILE}"
 chmod 640 "${ENV_FILE}"
 
-echo "[6/8] Rendering systemd service and nginx config..."
+echo "[7/9] Rendering systemd service and nginx config..."
 sed \
   -e "s|__APP_DIR__|${APP_DIR}|g" \
   -e "s|__APP_USER__|${APP_USER}|g" \
@@ -117,7 +136,7 @@ sed \
   "${SCRIPT_DIR}/garden-buddy.service.template" > "${SERVICE_FILE}"
 
 sed \
-  -e "s|__APP_DIR__|${APP_DIR}|g" \
+  -e "s|__STATIC_DIR__|${STATIC_DIR}|g" \
   -e "s|__SERVER_NAME__|${SERVER_NAME}|g" \
   -e "s|__APP_ROUTE__|${APP_ROUTE}|g" \
   -e "s|__API_ROUTE__|${API_ROUTE}|g" \
@@ -129,7 +148,7 @@ if [[ "${APP_ROUTE}" == "/" && "${SERVER_NAME}" == "_" && -e /etc/nginx/sites-en
   rm -f /etc/nginx/sites-enabled/default
 fi
 
-echo "[7/8] Starting/restarting services..."
+echo "[8/9] Starting/restarting services..."
 nginx -t
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}"
@@ -137,7 +156,7 @@ systemctl restart "${SERVICE_NAME}"
 systemctl enable --now nginx
 systemctl restart nginx
 
-echo "[8/8] Verifying backend health..."
+echo "[9/9] Verifying backend health..."
 if ! curl -fsS http://127.0.0.1:8000/health >/dev/null; then
   echo "Warning: backend healthcheck failed. Check logs with:"
   echo "  journalctl -u ${SERVICE_NAME} -n 200 --no-pager"

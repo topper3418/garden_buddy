@@ -6,6 +6,11 @@ One command deploy on Debian/Ubuntu Linux:
 sudo SERVER_NAME=your-domain.example.com APP_USER=$USER bash server/install.sh
 ```
 
+Optional overrides:
+
+- `APP_ROUTE=/garden/` to serve from a path prefix
+- `STATIC_DIR=/var/www/garden-buddy` to control where built frontend files are published for nginx
+
 The installer prompts for a route prefix.
 
 - Leave it blank to serve at `/` on port 80.
@@ -29,6 +34,7 @@ sudo APP_USER=$USER bash server/install.sh
 - Creates and populates `venv` in the repo root
 - Installs backend dependencies from `requirements.txt`
 - Installs frontend dependencies and builds with route-aware `VITE_API_BASE_URL` and Vite `--base`
+- Publishes frontend build output to `/var/www/garden-buddy` by default (override with `STATIC_DIR`)
 - Renders and installs systemd service from `garden-buddy.service.template`
 - Renders and installs nginx config from `garden-buddy.nginx.conf.template`
 - Creates `/etc/garden-buddy/garden-buddy.env` from template (if missing)
@@ -70,3 +76,4 @@ Optional flags:
 
 - `REMOVE_ENV_FILE=false` keeps `/etc/garden-buddy/garden-buddy.env`
 - `REMOVE_BUILD_ARTIFACTS=false` keeps `venv`, `frontend/node_modules`, `frontend/dist`
+- `STATIC_DIR=/var/www/garden-buddy` targets a custom published static directory for cleanup

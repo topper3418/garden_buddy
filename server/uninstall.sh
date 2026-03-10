@@ -11,6 +11,7 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 APP_DIR="${APP_DIR:-${REPO_DIR}}"
 SERVICE_NAME="${SERVICE_NAME:-garden-buddy}"
+STATIC_DIR="${STATIC_DIR:-/var/www/${SERVICE_NAME}}"
 ENV_DIR="/etc/garden-buddy"
 ENV_FILE="${ENV_DIR}/garden-buddy.env"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
@@ -61,6 +62,7 @@ if [[ "${REMOVE_BUILD_ARTIFACTS}" == "true" ]]; then
   rm -rf "${APP_DIR}/venv"
   rm -rf "${APP_DIR}/frontend/node_modules"
   rm -rf "${APP_DIR}/frontend/dist"
+  rm -rf "${STATIC_DIR}"
 fi
 
 log "Uninstall cleanup complete."
