@@ -3,6 +3,7 @@
     "filename": "backyard_cherry.jpg",
     "title": "Backyard Cherry Fruit",
     "plant_name": "Backyard Cherry",
+    "tag_name": "Vegetable",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/tomato"
   },
@@ -10,6 +11,7 @@
     "filename": "kitchen_basil.jpg",
     "title": "Kitchen Basil Leaves",
     "plant_name": "Kitchen Basil",
+    "tag_name": "Herb",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/basil"
   },
@@ -17,6 +19,7 @@
     "filename": "front_lavender.jpg",
     "title": "Front Lavender Bloom",
     "plant_name": "Front Lavender",
+    "tag_name": "Flowering",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/lavender"
   },
@@ -24,6 +27,7 @@
     "filename": "patio_mint.jpg",
     "title": "Patio Mint Cluster",
     "plant_name": "Patio Mint",
+    "tag_name": "Edible",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/mint"
   },
@@ -31,6 +35,7 @@
     "filename": "pepper_row_a.jpg",
     "title": "Pepper Row A",
     "plant_name": "Pepper Row A",
+    "tag_name": "Vegetable",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/bell-pepper"
   },
@@ -38,6 +43,7 @@
     "filename": "herb_corner.jpg",
     "title": "Herb Corner Bed",
     "plant_name": "Herb Corner",
+    "tag_name": "Companion Plant",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/herb-garden"
   },
@@ -45,6 +51,7 @@
     "filename": "rose_trellis.jpg",
     "title": "Rose Trellis Flower",
     "plant_name": "Rose Trellis",
+    "tag_name": "Flowering",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/rose"
   },
@@ -52,6 +59,7 @@
     "filename": "tomato_row_b.jpg",
     "title": "Tomato Row B",
     "plant_name": "Tomato Row B",
+    "tag_name": "Annual",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/cherry-tomato"
   },
@@ -59,6 +67,7 @@
     "filename": "window_basil_2.jpg",
     "title": "Window Basil Leaves",
     "plant_name": "Window Basil 2",
+    "tag_name": "Indoor",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/purple-basil"
   },
@@ -66,7 +75,88 @@
     "filename": "lavender_border.jpg",
     "title": "Lavender Border",
     "plant_name": "Lavender Border",
+    "tag_name": "Drought Tolerant",
     "mime_type": "image/jpeg",
     "source_url": "https://loremflickr.com/1024/768/lavender-field"
+  },
+  {
+    "filename": "backyard_cherry_cluster.jpg",
+    "title": "Backyard Cherry Cluster",
+    "plant_name": "Backyard Cherry",
+    "tag_name": "Edible",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/backyard_cherry_cluster/1024/768.jpg"
+  },
+  {
+    "filename": "kitchen_basil_topdown.jpg",
+    "title": "Kitchen Basil Topdown",
+    "plant_name": "Kitchen Basil",
+    "tag_name": "Herb",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/kitchen_basil_topdown/1024/768.jpg"
+  },
+  {
+    "filename": "front_lavender_path.jpg",
+    "title": "Front Lavender Path",
+    "plant_name": "Front Lavender",
+    "tag_name": "Flowering",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/front_lavender_path/1024/768.jpg"
+  },
+  {
+    "filename": "patio_mint_closeup.jpg",
+    "title": "Patio Mint Closeup",
+    "plant_name": "Patio Mint",
+    "tag_name": "Indoor",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/patio_mint_closeup/1024/768.jpg"
+  },
+  {
+    "filename": "pepper_row_a_canopy.jpg",
+    "title": "Pepper Row Canopy",
+    "plant_name": "Pepper Row A",
+    "tag_name": "Vegetable",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/pepper_row_a_canopy/1024/768.jpg"
+  },
+  {
+    "filename": "herb_corner_companion.jpg",
+    "title": "Herb Corner Companion",
+    "plant_name": "Herb Corner",
+    "tag_name": "Companion Plant",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/herb_corner_companion/1024/768.jpg"
+  },
+  {
+    "filename": "rose_trellis_bloom2.jpg",
+    "title": "Rose Trellis Bloom",
+    "plant_name": "Rose Trellis",
+    "tag_name": "Flowering",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/rose_trellis_bloom2/1024/768.jpg"
+  },
+  {
+    "filename": "tomato_row_b_vines.jpg",
+    "title": "Tomato Row Vines",
+    "plant_name": "Tomato Row B",
+    "tag_name": "Annual",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/tomato_row_b_vines/1024/768.jpg"
+  },
+  {
+    "filename": "window_basil_2_windowlight.jpg",
+    "title": "Window Basil Morning Light",
+    "plant_name": "Window Basil 2",
+    "tag_name": "Indoor",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/window_basil_2_windowlight/1024/768.jpg"
+  },
+  {
+    "filename": "lavender_border_sunset.jpg",
+    "title": "Lavender Border Sunset",
+    "plant_name": "Lavender Border",
+    "tag_name": "Drought Tolerant",
+    "mime_type": "image/jpeg",
+    "source_url": "https://picsum.photos/seed/lavender_border_sunset/1024/768.jpg"
   }
 ]

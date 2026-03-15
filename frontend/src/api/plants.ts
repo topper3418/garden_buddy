@@ -9,7 +9,7 @@ export function listPlants(limit = 50, offset = 0, archived = false): Promise<Li
 export function queryPlants(params: {
   nameContains?: string
   speciesIds?: number[]
-  plantTypeId?: number
+  tagId?: number
   archived?: boolean
   limit?: number
   offset?: number
@@ -21,7 +21,7 @@ export function queryPlants(params: {
       query.append('species_ids', String(speciesId))
     }
   }
-  if (params.plantTypeId !== undefined) query.set('plant_type_id', String(params.plantTypeId))
+  if (params.tagId !== undefined) query.set('tag_id', String(params.tagId))
   query.set('archived', String(params.archived ?? false))
   query.set('limit', String(clampQueryLimit(params.limit)))
   query.set('offset', String(params.offset ?? 0))
@@ -41,12 +41,12 @@ export function updatePlant(id: number, payload: Partial<PlantCreate>): Promise<
   return patchJson<Plant, Partial<PlantCreate>>(`/plants/${id}`, payload)
 }
 
-export function addTypeToPlant(plantId: number, typeId: number): Promise<Plant> {
-  return putJson<Plant>(`/plants/${plantId}/types/${typeId}`)
+export function addTagToPlant(plantId: number, tagId: number): Promise<Plant> {
+  return putJson<Plant>(`/plants/${plantId}/tags/${tagId}`)
 }
 
-export function removeTypeFromPlant(plantId: number, typeId: number): Promise<Plant> {
-  return deleteRequest(`/plants/${plantId}/types/${typeId}`).then(() => getPlantById(plantId))
+export function removeTagFromPlant(plantId: number, tagId: number): Promise<Plant> {
+  return deleteRequest(`/plants/${plantId}/tags/${tagId}`).then(() => getPlantById(plantId))
 }
 
 export function deletePlant(id: number): Promise<void> {

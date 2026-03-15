@@ -3,19 +3,19 @@
 from typing import Any
 
 from src.db.plant import (
-    add_plant_type_to_plant,
+    add_tag_to_plant,
     delete_plant,
     get_plant_by_id as db_get_plant_by_id,
-    get_plant_types_for_plant,
+    get_tags_for_plant,
     insert_plant,
     list_plants as db_list_plants,
     query_plants as db_query_plants,
-    remove_plant_type_from_plant,
+    remove_tag_from_plant,
     update_plant as db_update_plant,
 )
 from src.db.species import get_species_by_id as db_get_species_by_id
 from src.models.plant import Plant, PlantCreate, PlantListItem, PlantListResponse
-from src.models.plant_type import PlantType
+from src.models.tag import Tag
 from src.models.species import Species
 from src.services.common import ensure_tables, normalize_pagination
 
@@ -29,23 +29,23 @@ def _get_species_for_plant(species_id: int | None) -> Species | None:
     return Species.model_validate(row) if row else None
 
 
-def _get_plant_types_for_plant(plant_id: int) -> list[PlantType]:
-    rows = get_plant_types_for_plant(plant_id)
-    return [PlantType.model_validate(r) for r in rows]
+def _get_tags_for_plant(plant_id: int) -> list[Tag]:
+    rows = get_tags_for_plant(plant_id)
+    return [Tag.model_validate(r) for r in rows]
 
 
 def _to_plant_model(row: dict[str, Any]) -> Plant:
     plant_id = row["id"]
     species_id = row.get("species_id")
     resolved_species = _get_species_for_plant(species_id)
-    plant_types = _get_plant_types_for_plant(plant_id)
+    tags = _get_tags_for_plant(plant_id)
 
     return Plant.model_validate(
         {
             **row,
             "species": resolved_species.model_dump() if resolved_species else None,
-            "plant_types": [plant_type.model_dump() for plant_type in plant_types],
-            "plant_type_ids": [plant_type.id for plant_type in plant_types],
+            "tags": [tag.model_dump() for tag in tags],
+            "tag_ids": [tag.id for tag in tags],
         }
     )
 
@@ -62,7 +62,7 @@ def list_plants(limit: int = 50, offset: int = 0, archived: bool = False) -> Pla
 def query_plants(
     name_contains: str | None = None,
     species_ids: list[int] | None = None,
-    plant_type_id: int | None = None,
+    tag_id: int | None = None,
     archived: bool = False,
     limit: int = 50,
     offset: int = 0,
@@ -73,7 +73,7 @@ def query_plants(
     rows = db_query_plants(
         name_contains=name_contains,
         species_ids=species_ids,
-        plant_type_id=plant_type_id,
+        tag_id=tag_id,
         archived=archived,
         limit=limit,
         offset=offset,
@@ -89,11 +89,16 @@ def get_plant_by_id(plant_id: int, *, include_deleted: bool = False) -> Plant | 
 
 
 def create_plant(payload: PlantCreate) -> Plant:
-    """Create and return a plant record including type associations."""
+    """Create and return a plant record including tag associations."""
     ensure_tables()
-    plant_id = insert_plant(name=payload.name, notes=payload.notes, species_id=payload.species_id)
-    for plant_type_id in payload.plant_type_ids:
-        add_plant_type_to_plant(plant_id, plant_type_id)
+    plant_id = insert_plant(
+        name=payload.name,
+        notes=payload.notes,
+        species_id=payload.species_id,
+        main_media_id=payload.main_media_id,
+    )
+    for tag_id in payload.tag_ids:
+        add_tag_to_plant(plant_id, tag_id)
 
     created = get_plant_by_id(plant_id)
     if not created:
@@ -107,16 +112,18 @@ def update_plant(
     name: str | None = None,
     notes: str | None = None,
     species_id: int | None | object = _UNSET,
-    plant_type_ids: list[int] | object = _UNSET,
+    tag_ids: list[int] | object = _UNSET,
+    main_media_id: int | None | object = _UNSET,
 ) -> Plant | None:
-    """Update mutable fields and optional type associations."""
+    """Update mutable fields and optional tag associations."""
     ensure_tables()
     updated = db_update_plant(
         plant_id,
         name=name,
         notes=notes,
         species_id=species_id,
-        plant_type_ids=plant_type_ids,
+        tag_ids=tag_ids,
+        main_media_id=main_media_id,
         unset_sentinel=_UNSET,
     )
     if not updated:
@@ -130,19 +137,19 @@ def delete_plant_by_id(plant_id: int) -> bool:
     return delete_plant(plant_id)
 
 
-def add_type_to_plant(plant_id: int, plant_type_id: int) -> Plant | None:
-    """Attach a plant type to a plant and return updated plant."""
+def add_tag_to_plant_by_id(plant_id: int, tag_id: int) -> Plant | None:
+    """Attach a tag to a plant and return updated plant."""
     ensure_tables()
     if not get_plant_by_id(plant_id):
         return None
-    add_plant_type_to_plant(plant_id, plant_type_id)
+    add_tag_to_plant(plant_id, tag_id)
     return get_plant_by_id(plant_id)
 
 
-def remove_type_from_plant(plant_id: int, plant_type_id: int) -> Plant | None:
-    """Detach a plant type from a plant and return updated plant."""
+def remove_tag_from_plant_by_id(plant_id: int, tag_id: int) -> Plant | None:
+    """Detach a tag from a plant and return updated plant."""
     ensure_tables()
     if not get_plant_by_id(plant_id):
         return None
-    remove_plant_type_from_plant(plant_id, plant_type_id)
+    remove_tag_from_plant(plant_id, tag_id)
     return get_plant_by_id(plant_id)

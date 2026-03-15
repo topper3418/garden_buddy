@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { listMedia, queryMedia } from '../api/media'
 import { MediaCard } from '../components/MediaCard'
 import { listPlants, queryPlants } from '../api/plants'
-import { listPlantTypes } from '../api/plantTypes'
+import { listTags } from '../api/tags'
 import { listSpecies } from '../api/species'
 import { useIsMobile } from '../hooks/useIsMobile'
 import type { Media, Plant } from '../types/models'
@@ -13,15 +13,15 @@ import type { Media, Plant } from '../types/models'
 export function DashboardPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
-  const [counts, setCounts] = useState({ species: 0, plantTypes: 0, plants: 0, media: 0 })
+  const [counts, setCounts] = useState({ species: 0, tags: 0, plants: 0, media: 0 })
   const [recentMedia, setRecentMedia] = useState<Media[]>([])
   const [recentPlants, setRecentPlants] = useState<Plant[]>([])
 
   useEffect(() => {
     async function load() {
-      const [species, plantTypes, plantsList, mediaList, recentPlantsData, recentMediaData] = await Promise.all([
+      const [species, tags, plantsList, mediaList, recentPlantsData, recentMediaData] = await Promise.all([
         listSpecies(200, 0),
-        listPlantTypes(200, 0),
+        listTags(200, 0),
         listPlants(200, 0, false),
         listMedia(200, 0, false),
         queryPlants({ limit: 10, offset: 0, archived: false }),
@@ -30,7 +30,7 @@ export function DashboardPage() {
 
       setCounts({
         species: species.items.length,
-        plantTypes: plantTypes.items.length,
+        tags: tags.items.length,
         plants: plantsList.items.length,
         media: mediaList.items.length,
       })
@@ -49,7 +49,7 @@ export function DashboardPage() {
           <Card><Statistic title='Species' value={counts.species} /></Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card><Statistic title='Plant Types' value={counts.plantTypes} /></Card>
+          <Card><Statistic title='Tags' value={counts.tags} /></Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
           <Card><Statistic title='Plants' value={counts.plants} /></Card>

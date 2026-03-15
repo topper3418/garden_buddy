@@ -5,13 +5,13 @@ from fastapi import APIRouter, HTTPException, Query, status
 from src.api.schemas import PlantUpdate
 from src.models.plant import Plant, PlantCreate, PlantListResponse
 from src.services.plant_service import (
-    add_type_to_plant,
+    add_tag_to_plant_by_id,
     create_plant,
     delete_plant_by_id,
     get_plant_by_id,
     list_plants,
     query_plants,
-    remove_type_from_plant,
+    remove_tag_from_plant_by_id,
     update_plant,
 )
 
@@ -31,7 +31,7 @@ def list_plants_endpoint(
 def query_plants_endpoint(
     name_contains: str | None = None,
     species_ids: list[int] | None = Query(default=None),
-    plant_type_id: int | None = None,
+    tag_id: int | None = None,
     archived: bool = Query(default=False),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -39,7 +39,7 @@ def query_plants_endpoint(
     return query_plants(
         name_contains=name_contains,
         species_ids=species_ids,
-        plant_type_id=plant_type_id,
+        tag_id=tag_id,
         archived=archived,
         limit=limit,
         offset=offset,
@@ -68,8 +68,10 @@ def update_plant_endpoint(plant_id: int, payload: PlantUpdate) -> Plant:
         kwargs["notes"] = payload.notes
     if "species_id" in payload.model_fields_set:
         kwargs["species_id"] = payload.species_id
-    if "plant_type_ids" in payload.model_fields_set:
-        kwargs["plant_type_ids"] = payload.plant_type_ids
+    if "tag_ids" in payload.model_fields_set:
+        kwargs["tag_ids"] = payload.tag_ids
+    if "main_media_id" in payload.model_fields_set:
+        kwargs["main_media_id"] = payload.main_media_id
 
     updated = update_plant(plant_id, **kwargs)
     if not updated:
@@ -77,17 +79,17 @@ def update_plant_endpoint(plant_id: int, payload: PlantUpdate) -> Plant:
     return updated
 
 
-@router.put("/{plant_id}/types/{plant_type_id}", response_model=Plant)
-def add_type_to_plant_endpoint(plant_id: int, plant_type_id: int) -> Plant:
-    updated = add_type_to_plant(plant_id, plant_type_id)
+@router.put("/{plant_id}/tags/{tag_id}", response_model=Plant)
+def add_tag_to_plant_endpoint(plant_id: int, tag_id: int) -> Plant:
+    updated = add_tag_to_plant_by_id(plant_id, tag_id)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
     return updated
 
 
-@router.delete("/{plant_id}/types/{plant_type_id}", response_model=Plant)
-def remove_type_from_plant_endpoint(plant_id: int, plant_type_id: int) -> Plant:
-    updated = remove_type_from_plant(plant_id, plant_type_id)
+@router.delete("/{plant_id}/tags/{tag_id}", response_model=Plant)
+def remove_tag_from_plant_endpoint(plant_id: int, tag_id: int) -> Plant:
+    updated = remove_tag_from_plant_by_id(plant_id, tag_id)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
     return updated

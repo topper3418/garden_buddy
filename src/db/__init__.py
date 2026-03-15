@@ -6,7 +6,7 @@ not perform schema creation side effects.
 
 from src.db.media import init_media_table
 from src.db.plant import init_plant_tables
-from src.db.plant_type import init_plant_types_table
+from src.db.tag import init_tags_table
 from src.db.species import init_species_table
 
 
@@ -17,6 +17,6 @@ def init_all_tables() -> None:
     ``CREATE TABLE IF NOT EXISTS``.
     """
     init_species_table()
-    init_plant_types_table()
-    init_plant_tables()  # depends on species and plant_types
+    init_tags_table()
+    init_plant_tables()  # depends on species and tags
     init_media_table()  # optional foreign key to plants

@@ -2,61 +2,71 @@
   {
     "name": "Backyard Cherry",
     "species_name": "Solanum lycopersicum var. cerasiforme",
-    "plant_type_names": ["Annual", "Vegetable", "Edible", "Outdoor"],
+    "tag_names": ["Annual", "Vegetable", "Edible", "Outdoor"],
+    "main_media_filename": "backyard_cherry.jpg",
     "notes": "# Backyard Cherry Plan\n\n- Bed: **South Raised Bed**\n- Support: vertical twine\n- Companion: basil + marigold\n\n## Weekly Checklist\n- [x] Mulched\n- [ ] Prune lower suckers\n- [ ] Rotate liquid feed\n\n> Keep top growth airy to reduce mildew pressure after rain."
   },
   {
     "name": "Kitchen Basil",
     "species_name": "Ocimum basilicum",
-    "plant_type_names": ["Annual", "Herb", "Edible", "Indoor"],
+    "tag_names": ["Annual", "Herb", "Edible", "Indoor"],
+    "main_media_filename": "kitchen_basil.jpg",
     "notes": "# Kitchen Basil\n\n## Light + Water\n- Window: east-facing\n- Water rhythm: every `2-3` days\n\n## Pinch Strategy\n1. Remove top pair above node 3\n2. Keep side shoots active\n3. Harvest often to prevent bolting\n\n`Target`: dense, compact growth for weekly pesto harvests."
   },
   {
     "name": "Front Lavender",
     "species_name": "Lavandula angustifolia",
-    "plant_type_names": ["Perennial", "Flowering", "Outdoor", "Drought Tolerant"],
+    "tag_names": ["Perennial", "Flowering", "Outdoor", "Drought Tolerant"],
+    "main_media_filename": "front_lavender.jpg",
     "notes": "# Front Lavender Border\n\n## Garden Goals\n- Pollinator support through summer\n- Keep mound shape symmetrical\n\n### Seasonal Tasks\n- Spring: light shaping cut\n- Mid-summer: deadhead spent spikes\n- Fall: avoid hard prune\n\n> Better too dry than too wet for root health."
   },
   {
     "name": "Patio Mint",
     "species_name": "Mentha spicata",
-    "plant_type_names": ["Perennial", "Herb", "Edible", "Indoor"],
+    "tag_names": ["Perennial", "Herb", "Edible", "Indoor"],
+    "main_media_filename": "patio_mint.jpg",
     "notes": "# Patio Mint Container\n\n- Pot size: 12-inch\n- Soil: moisture-retentive mix\n- Position: morning sun\n\n## Control Plan\n- [x] Root barrier (container only)\n- [ ] Cut runners monthly\n- [ ] Refresh topsoil after heavy flush\n\nGreat for tea blends and garnish harvests."
   },
   {
     "name": "Pepper Row A",
     "species_name": "Capsicum annuum",
-    "plant_type_names": ["Annual", "Vegetable", "Edible", "Outdoor"],
+    "tag_names": ["Annual", "Vegetable", "Edible", "Outdoor"],
+    "main_media_filename": "pepper_row_a.jpg",
     "notes": "# Pepper Row A\n\n## Planting Layout\n| Row | Spacing | Variety |\n| --- | --- | --- |\n| A1-A4 | 16 in | Sweet bell |\n\n## Care Notes\n- Stake each plant at transplant\n- Remove first flower for stronger branching\n- Feed with low-nitrogen bloom mix"
   },
   {
     "name": "Herb Corner",
     "species_name": "Ocimum basilicum var. purpurascens",
-    "plant_type_names": ["Perennial", "Herb", "Outdoor", "Companion Plant"],
+    "tag_names": ["Perennial", "Herb", "Outdoor", "Companion Plant"],
+    "main_media_filename": "herb_corner.jpg",
     "notes": "# Herb Corner Mix\n\nPurple basil anchor for companion planting.\n\n## Pairings\n- Tomatoes\n- Peppers\n- Nasturtium edge\n\n## Observations\n- Aroma strongest after noon heat\n- Aphid pressure low this season\n- Prune before flowering for flavor"
   },
   {
     "name": "Rose Trellis",
     "species_name": "Rosa rubiginosa",
-    "plant_type_names": ["Perennial", "Flowering", "Outdoor"],
+    "tag_names": ["Perennial", "Flowering", "Outdoor"],
+    "main_media_filename": "rose_trellis.jpg",
     "notes": "# Rose Trellis\n\n## Structure\n- Trellis tie points every 10 in\n- Main canes trained horizontally\n\n## Monthly Routine\n1. Inspect ties and loosen if tight\n2. Remove crossing stems\n3. Feed after first flush\n\n> Horizontal canes push more side flowering shoots."
   },
   {
     "name": "Tomato Row B",
     "species_name": "Solanum lycopersicum",
-    "plant_type_names": ["Annual", "Vegetable", "Edible", "Outdoor"],
+    "tag_names": ["Annual", "Vegetable", "Edible", "Outdoor"],
+    "main_media_filename": "tomato_row_b.jpg",
     "notes": "# Tomato Row B\n\nBackup crop line for later harvest window.\n\n## Training\n- Single-leader string trellis\n- Remove leaves below first truss\n\n## Disease Watch\n- [ ] Check for early blight spots\n- [ ] Keep drip emitters unclogged\n- [ ] Increase airflow after storms"
   },
   {
     "name": "Window Basil 2",
     "species_name": "Ocimum basilicum var. purpurascens",
-    "plant_type_names": ["Annual", "Herb", "Edible", "Indoor"],
+    "tag_names": ["Annual", "Herb", "Edible", "Indoor"],
+    "main_media_filename": "window_basil_2.jpg",
     "notes": "# Window Basil Backup\n\nSecondary indoor basil for kitchen overflow.\n\n## Rotation\n- Turn pot `90deg` every 2 days\n- Top-water lightly, then drain\n\n## Harvest Rule\nTake no more than one-third of canopy per trim cycle."
   },
   {
     "name": "Lavender Border",
     "species_name": "Lavandula angustifolia var. hidcote",
-    "plant_type_names": ["Perennial", "Flowering", "Outdoor", "Drought Tolerant"],
+    "tag_names": ["Perennial", "Flowering", "Outdoor", "Drought Tolerant"],
+    "main_media_filename": "lavender_border.jpg",
     "notes": "# Hidcote Lavender Edge\n\nDense walkway edging with compact habit.\n\n## Maintenance\n- Light gravel mulch for drainage\n- Deadhead to extend bloom\n- Shear by one-third after flowering\n\n### Fragrance Note\nBest scent release in warm late afternoon sun."
   }
 ]

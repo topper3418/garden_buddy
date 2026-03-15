@@ -5,9 +5,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.routers.ai import router as ai_router
 from src.api.routers.media import router as media_router
 from src.api.routers.plants import router as plants_router
-from src.api.routers.plant_types import router as plant_types_router
+from src.api.routers.tags import router as tags_router
 from src.api.routers.species import router as species_router
 from src.db import init_all_tables
 from src.settings import settings
@@ -40,9 +41,10 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(species_router)
-    app.include_router(plant_types_router)
+    app.include_router(tags_router)
     app.include_router(plants_router)
     app.include_router(media_router)
+    app.include_router(ai_router)
     return app
 
 

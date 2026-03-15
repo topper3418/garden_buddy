@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  addTypeToPlant,
+  addTagToPlant,
   createPlant,
   deletePlant,
   getPlantById,
   listPlants,
   queryPlants,
-  removeTypeFromPlant,
+  removeTagFromPlant,
   updatePlant,
 } from '../plants'
 import { mockFetchJson, mockFetchNoContent } from './testUtils'
@@ -25,22 +25,22 @@ describe('plants api module', () => {
 
   it('queryPlants maps filters to querystring', async () => {
     const fetchMock = mockFetchJson([])
-    await queryPlants({ nameContains: 'tomato', speciesIds: [1, 3], plantTypeId: 2, archived: true, limit: 25, offset: 4 })
+    await queryPlants({ nameContains: 'tomato', speciesIds: [1, 3], tagId: 2, archived: true, limit: 25, offset: 4 })
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/plants/query?name_contains=tomato&species_ids=1&species_ids=3&plant_type_id=2&archived=true&limit=25&offset=4',
+      'http://localhost:8000/plants/query?name_contains=tomato&species_ids=1&species_ids=3&tag_id=2&archived=true&limit=25&offset=4',
     )
   })
 
   it('get/create/update/delete functions map to expected endpoints', async () => {
-    const getMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', plant_type_ids: [], plant_types: [] })
+    const getMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', tag_ids: [], tags: [] })
     await getPlantById(1, true)
     expect(getMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1?include_deleted=true')
 
-    const createMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', plant_type_ids: [], plant_types: [] })
-    await createPlant({ name: 'Plant', plant_type_ids: [] })
+    const createMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', tag_ids: [], tags: [] })
+    await createPlant({ name: 'Plant', tag_ids: [] })
     expect(createMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants')
 
-    const updateMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', plant_type_ids: [], plant_types: [] })
+    const updateMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', tag_ids: [], tags: [] })
     await updatePlant(1, { notes: 'updated' })
     expect(updateMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1')
 
@@ -49,10 +49,10 @@ describe('plants api module', () => {
     expect(deleteMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1')
   })
 
-  it('addTypeToPlant uses PUT and removeTypeFromPlant uses DELETE then GET', async () => {
-    const addMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', plant_type_ids: [2], plant_types: [] })
-    await addTypeToPlant(1, 2)
-    expect(addMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1/types/2')
+  it('addTagToPlant uses PUT and removeTagFromPlant uses DELETE then GET', async () => {
+    const addMock = mockFetchJson({ id: 1, name: 'Plant', created_at: 'x', tag_ids: [2], tags: [] })
+    await addTagToPlant(1, 2)
+    expect(addMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1/tags/2')
 
     const deleteResponse = {
       ok: true,
@@ -63,15 +63,15 @@ describe('plants api module', () => {
     const getResponse = {
       ok: true,
       status: 200,
-      json: vi.fn().mockResolvedValue({ id: 1, name: 'Plant', created_at: 'x', plant_type_ids: [], plant_types: [] }),
+      json: vi.fn().mockResolvedValue({ id: 1, name: 'Plant', created_at: 'x', tag_ids: [], tags: [] }),
       text: vi.fn().mockResolvedValue(''),
     }
     const fetchMock = vi.fn().mockResolvedValueOnce(deleteResponse).mockResolvedValueOnce(getResponse)
     vi.stubGlobal('fetch', fetchMock)
 
-    await removeTypeFromPlant(1, 2)
+    await removeTagFromPlant(1, 2)
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1/types/2')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/plants/1/tags/2')
     expect(fetchMock.mock.calls[1]?.[0]).toBe('http://localhost:8000/plants/1?include_deleted=false')
   })
 })

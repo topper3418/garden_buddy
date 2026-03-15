@@ -1,4 +1,4 @@
-import { deleteRequest, getJson, patchJson, postForm } from './http'
+import { buildApiUrl, deleteRequest, getJson, patchJson, postForm } from './http'
 import { clampQueryLimit } from './limits'
 import type { ListResponse, Media, MediaListItem } from '../types/models'
 
@@ -11,7 +11,7 @@ export function listMedia(limit = 50, offset = 0, includeFilePath = true): Promi
 export function queryMedia(params: {
   nameContains?: string
   speciesIds?: number[]
-  plantTypeId?: number
+  tagId?: number
   titleContains?: string
   mimeType?: string
   plantId?: number
@@ -28,7 +28,7 @@ export function queryMedia(params: {
       query.append('species_ids', String(speciesId))
     }
   }
-  if (params.plantTypeId !== undefined) query.set('plant_type_id', String(params.plantTypeId))
+  if (params.tagId !== undefined) query.set('tag_id', String(params.tagId))
   if (params.titleContains) query.set('title_contains', params.titleContains)
   if (params.mimeType) query.set('mime_type', params.mimeType)
   if (params.plantId !== undefined) query.set('plant_id', String(params.plantId))
@@ -45,16 +45,17 @@ export function getMediaById(id: number, includeFilePath = true): Promise<Media>
   return getJson<Media>(`/media/${id}?include_file_path=${String(includeFilePath)}`)
 }
 
-export function uploadMedia(file: File, title?: string, plantId?: number): Promise<Media> {
+export function uploadMedia(file: File, title?: string, plantId?: number, tagId?: number): Promise<Media> {
   const form = new FormData()
   form.append('file', file)
   if (title) form.append('title', title)
   if (plantId !== undefined) form.append('plant_id', String(plantId))
+  if (tagId !== undefined) form.append('tag_id', String(tagId))
   return postForm<Media>('/media', form)
 }
 
-export function updateMedia(id: number, payload: { title?: string | null; mime_type?: string | null; size?: number | null; plant_id?: number | null }): Promise<Media> {
-  return patchJson<Media, { title?: string | null; mime_type?: string | null; size?: number | null; plant_id?: number | null }>(`/media/${id}`, payload)
+export function updateMedia(id: number, payload: { title?: string | null; mime_type?: string | null; size?: number | null; plant_id?: number | null; tag_id?: number | null }): Promise<Media> {
+  return patchJson<Media, { title?: string | null; mime_type?: string | null; size?: number | null; plant_id?: number | null; tag_id?: number | null }>(`/media/${id}`, payload)
 }
 
 export function deleteMedia(id: number): Promise<void> {
@@ -62,6 +63,5 @@ export function deleteMedia(id: number): Promise<void> {
 }
 
 export function mediaFileUrl(id: number): string {
-  const base = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
-  return `${base}/media/${id}/file`
+  return buildApiUrl(`/media/${id}/file`)
 }

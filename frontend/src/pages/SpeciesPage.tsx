@@ -1,13 +1,13 @@
-import { EllipsisOutlined } from '@ant-design/icons'
-import { Button, Dropdown, Form, Input, Modal, Popconfirm, Space, Table, Typography, message } from 'antd'
-import type { MenuProps, TableProps } from 'antd'
+import { Button, Form, Input, Modal, Space, Table, Typography, message } from 'antd'
+import type { TableProps } from 'antd'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { generateSpeciesDraft } from '../api/ai'
 import { API_QUERY_LIMIT_MAX } from '../api/limits'
-import { createSpecies, deleteSpecies, querySpecies, updateSpecies } from '../api/species'
+import { createSpecies, querySpecies } from '../api/species'
 import { useIsMobile } from '../hooks/useIsMobile'
-import type { Species, SpeciesCreate } from '../types/models'
+import type { SpeciesCreate, Species } from '../types/models'
 
 type SpeciesTreeNode = Species & {
   children?: SpeciesTreeNode[]
@@ -43,25 +43,12 @@ function buildSpeciesTree(species: Species[]): SpeciesTreeNode[] {
   return roots
 }
 
-function collectDescendantSpeciesIds(node: SpeciesTreeNode): number[] {
-  const ids: number[] = [node.id]
-  if (!node.children || node.children.length === 0) {
-    return ids
-  }
-
-  for (const child of node.children) {
-    ids.push(...collectDescendantSpeciesIds(child))
-  }
-
-  return ids
-}
-
 export function SpeciesPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [items, setItems] = useState<SpeciesTreeNode[]>([])
   const [isModalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Species | null>(null)
+  const [isGeneratingDraft, setGeneratingDraft] = useState(false)
   const [form] = Form.useForm<SpeciesCreate>()
 
   async function refresh() {
@@ -75,46 +62,32 @@ export function SpeciesPage() {
 
   async function onSubmit() {
     const values = await form.validateFields()
-    if (editing) {
-      await updateSpecies(editing.id, values)
-      message.success('Species updated')
-    } else {
-      await createSpecies(values)
-      message.success('Species created')
-    }
+    await createSpecies(values)
+    message.success('Species created')
     setModalOpen(false)
-    setEditing(null)
     form.resetFields()
     await refresh()
   }
 
-  const viewPlants = (row: SpeciesTreeNode) => {
-    const speciesIds = collectDescendantSpeciesIds(row)
-    const params = new URLSearchParams()
-    for (const speciesId of speciesIds) {
-      params.append('speciesIds', String(speciesId))
+  async function onGenerateDraft() {
+    const enteredName = String(form.getFieldValue('name') ?? '').trim()
+    if (!enteredName) {
+      return
     }
-    navigate(`/plants?${params.toString()}`)
-  }
 
-  const openEditModal = (row: SpeciesTreeNode) => {
-    setEditing(row)
-    form.setFieldsValue({
-      name: row.name,
-      common_name: row.common_name,
-      notes: row.notes,
-      parent_species_id: row.parent_species_id,
-    })
-    setModalOpen(true)
-  }
-
-  const deleteRow = async (row: SpeciesTreeNode) => {
+    setGeneratingDraft(true)
     try {
-      await deleteSpecies(row.id)
-      message.success('Species deleted')
-      await refresh()
-    } catch {
-      message.error('Could not delete species (possibly has subspecies)')
+      const draft = await generateSpeciesDraft(enteredName)
+      form.setFieldsValue({
+        name: draft.name,
+        common_name: draft.common_name ?? undefined,
+        notes: draft.notes,
+      })
+      message.success('AI species draft generated')
+    } catch (error) {
+      message.error((error as Error).message)
+    } finally {
+      setGeneratingDraft(false)
     }
   }
 
@@ -122,10 +95,14 @@ export function SpeciesPage() {
     {
       title: 'Species',
       render: (_, row) => (
-        <div style={{ lineHeight: 1.25 }}>
-          <Typography.Text strong style={{ display: 'block', wordBreak: 'break-word' }}>
+        <div style={{ lineHeight: 1.25, minWidth: 0 }}>
+          <Button
+            type='link'
+            style={{ padding: 0, textAlign: 'left', height: 'auto', whiteSpace: 'normal' }}
+            onClick={() => navigate(`/species/${row.id}`)}
+          >
             {row.name}
-          </Typography.Text>
+          </Button>
           {row.common_name?.trim() && (
             <Typography.Text type='secondary' style={{ fontSize: 12 }}>
               {row.common_name}
@@ -146,52 +123,17 @@ export function SpeciesPage() {
         </div>
       ),
     },
-    {
-      title: '',
-      width: 46,
-      align: 'center',
-      render: (_, row) => {
-        const menuItems: MenuProps['items'] = [
-          { key: 'view', label: 'View Plants' },
-          { key: 'edit', label: 'Edit' },
-          { key: 'delete', label: 'Delete', danger: true },
-        ]
-
-        return (
-          <Dropdown
-            trigger={['click']}
-            menu={{
-              items: menuItems,
-              onClick: ({ key }) => {
-                if (key === 'view') {
-                  viewPlants(row)
-                  return
-                }
-                if (key === 'edit') {
-                  openEditModal(row)
-                  return
-                }
-                if (key === 'delete') {
-                  void Modal.confirm({
-                    title: 'Delete species?',
-                    content: 'This may fail if the species has subspecies or references.',
-                    okText: 'Delete',
-                    okButtonProps: { danger: true },
-                    onOk: async () => deleteRow(row),
-                  })
-                }
-              },
-            }}
-          >
-            <Button size='small' icon={<EllipsisOutlined />} aria-label='Species row actions' />
-          </Dropdown>
-        )
-      },
-    },
   ]
 
   const desktopColumns: TableProps<SpeciesTreeNode>['columns'] = [
-    { title: 'Name', dataIndex: 'name' },
+    {
+      title: 'Name',
+      render: (_, row) => (
+        <Button type='link' style={{ padding: 0 }} onClick={() => navigate(`/species/${row.id}`)}>
+          {row.name}
+        </Button>
+      ),
+    },
     { title: 'Common Name', dataIndex: 'common_name' },
     {
       title: 'Plants',
@@ -202,22 +144,6 @@ export function SpeciesPage() {
       title: 'Subspecies',
       render: (_, row) => row.children?.length ?? 0,
       width: 120,
-    },
-    {
-      title: 'Actions',
-      render: (_, row) => (
-        <Space wrap>
-          <Button size='small' onClick={() => viewPlants(row)}>
-            View Plants
-          </Button>
-          <Button size='small' onClick={() => openEditModal(row)}>
-            Edit
-          </Button>
-          <Popconfirm title='Delete species?' onConfirm={async () => deleteRow(row)}>
-            <Button size='small' danger>Delete</Button>
-          </Popconfirm>
-        </Space>
-      ),
     },
   ]
 
@@ -238,6 +164,10 @@ export function SpeciesPage() {
         size={isMobile ? 'small' : 'middle'}
         scroll={isMobile ? undefined : { x: 860 }}
         tableLayout={isMobile ? 'fixed' : undefined}
+        onRow={(row) => ({
+          onClick: () => navigate(`/species/${row.id}`),
+          style: { cursor: 'pointer' },
+        })}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
@@ -255,11 +185,10 @@ export function SpeciesPage() {
       />
 
       <Modal
-        title={editing ? 'Edit Species' : 'Create Species'}
+        title='Create Species'
         open={isModalOpen}
         onCancel={() => {
           setModalOpen(false)
-          setEditing(null)
           form.resetFields()
         }}
         onOk={() => void onSubmit()}
@@ -267,6 +196,22 @@ export function SpeciesPage() {
         <Form form={form} layout='vertical'>
           <Form.Item label='Name' name='name' rules={[{ required: true }]}>
             <Input />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(previous, current) => previous.name !== current.name}>
+            {() => {
+              const canGenerate = String(form.getFieldValue('name') ?? '').trim().length >= 3
+              return (
+                <Form.Item>
+                  <Button
+                    onClick={() => void onGenerateDraft()}
+                    loading={isGeneratingDraft}
+                    disabled={!canGenerate}
+                  >
+                    Generate Details with AI
+                  </Button>
+                </Form.Item>
+              )
+            }}
           </Form.Item>
           <Form.Item label='Common Name' name='common_name'>
             <Input />

@@ -8,7 +8,7 @@ from src.db.connection import get_db_connection
 _UNSET = object()
 
 
-def init_media_table():
+def init_media_table() -> None:
     """Create the media table if it doesn't exist."""
     with get_db_connection() as conn:
         conn.execute(
@@ -20,6 +20,7 @@ def init_media_table():
                 mime_type TEXT,
                 size INTEGER,
                 plant_id INTEGER REFERENCES plants(id) ON DELETE SET NULL,
+                tag_id INTEGER REFERENCES tags(id) ON DELETE SET NULL,
                 uploaded_at TEXT NOT NULL
             )
             """
@@ -33,15 +34,24 @@ def insert_media(
     size: int,
     title: Optional[str] = None,
     plant_id: int | None = None,
+    tag_id: int | None = None,
 ) -> int:
     """Insert a new media record and return its row id."""
     with get_db_connection() as conn:
         cur = conn.execute(
             """
-            INSERT INTO media (filename, title, mime_type, size, plant_id, uploaded_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO media (filename, title, mime_type, size, plant_id, tag_id, uploaded_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (filename, title, mime_type, size, plant_id, datetime.now(timezone.utc).isoformat()),
+            (
+                filename,
+                title,
+                mime_type,
+                size,
+                plant_id,
+                tag_id,
+                datetime.now(timezone.utc).isoformat(),
+            ),
         )
         conn.commit()
         if not cur.lastrowid:
@@ -52,10 +62,7 @@ def insert_media(
 def get_media_by_filename(filename: str) -> Optional[dict]:
     """Retrieve a media record by filename."""
     with get_db_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM media WHERE filename = ?",
-            (filename,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM media WHERE filename = ?", (filename,)).fetchone()
         return dict(row) if row else None
 
 
@@ -71,7 +78,7 @@ def list_media(limit: int, offset: int) -> list[dict]:
     with get_db_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, filename, title, mime_type, plant_id
+            SELECT id, filename, title, mime_type, plant_id, tag_id
             FROM media
             ORDER BY uploaded_at DESC
             LIMIT ? OFFSET ?
@@ -87,7 +94,7 @@ def query_media(
     mime_type: str | None,
     plant_id: int | None,
     species_ids: list[int] | None,
-    plant_type_id: int | None,
+    tag_id: int | None,
     min_size: int | None,
     max_size: int | None,
     limit: int,
@@ -98,18 +105,15 @@ def query_media(
     clauses: list[str] = []
     params: list[Any] = []
 
-    needs_plant_join = bool(name_contains or species_ids or plant_type_id)
+    needs_plant_join = bool(name_contains or species_ids)
     if needs_plant_join:
         joins.append("INNER JOIN plants p ON p.id = m.plant_id")
         clauses.append("p.deleted_at IS NULL")
-    if plant_type_id is not None:
-        joins.append("INNER JOIN plant_plant_types ppt ON ppt.plant_id = p.id")
-        clauses.append("ppt.plant_type_id = ?")
-        params.append(plant_type_id)
 
     if name_contains:
         clauses.append("p.name LIKE ?")
         params.append(f"%{name_contains}%")
+
     if species_ids:
         placeholders = ", ".join("?" for _ in species_ids)
         clauses.append(f"p.species_id IN ({placeholders})")
@@ -118,15 +122,37 @@ def query_media(
     if title_contains:
         clauses.append("m.title LIKE ?")
         params.append(f"%{title_contains}%")
+
     if mime_type:
         clauses.append("m.mime_type = ?")
         params.append(mime_type)
+
     if plant_id is not None:
         clauses.append("m.plant_id = ?")
         params.append(plant_id)
+
+    if tag_id is not None:
+        clauses.append(
+            """
+            (
+                m.tag_id = ?
+                OR EXISTS (
+                    SELECT 1
+                    FROM plants p2
+                    JOIN plant_tags pt ON pt.plant_id = p2.id
+                    WHERE p2.id = m.plant_id
+                      AND p2.deleted_at IS NULL
+                      AND pt.tag_id = ?
+                )
+            )
+            """
+        )
+        params.extend([tag_id, tag_id])
+
     if min_size is not None:
         clauses.append("m.size >= ?")
         params.append(min_size)
+
     if max_size is not None:
         clauses.append("m.size <= ?")
         params.append(max_size)
@@ -156,6 +182,7 @@ def update_media(
     mime_type: str | None | object = _UNSET,
     size: int | None | object = _UNSET,
     plant_id: int | None | object = _UNSET,
+    tag_id: int | None | object = _UNSET,
 ) -> bool:
     """Update mutable media fields by id."""
     current = get_media_by_id(media_id)
@@ -166,12 +193,13 @@ def update_media(
     next_mime_type = current["mime_type"] if mime_type is _UNSET else mime_type
     next_size = current["size"] if size is _UNSET else size
     next_plant_id = current.get("plant_id") if plant_id is _UNSET else plant_id
+    next_tag_id = current.get("tag_id") if tag_id is _UNSET else tag_id
 
     with get_db_connection() as conn:
         conn.execute(
             """
             UPDATE media
-            SET title = ?, mime_type = ?, size = ?, plant_id = ?
+            SET title = ?, mime_type = ?, size = ?, plant_id = ?, tag_id = ?
             WHERE id = ?
             """,
             (
@@ -179,6 +207,7 @@ def update_media(
                 next_mime_type,
                 next_size,
                 next_plant_id,
+                next_tag_id,
                 media_id,
             ),
         )
@@ -197,9 +226,6 @@ def delete_media_by_id(media_id: int) -> bool:
 def delete_media_by_filename(filename: str) -> bool:
     """Delete a media record by filename. Returns True if deleted."""
     with get_db_connection() as conn:
-        cur = conn.execute(
-            "DELETE FROM media WHERE filename = ?",
-            (filename,)
-        )
+        cur = conn.execute("DELETE FROM media WHERE filename = ?", (filename,))
         conn.commit()
         return cur.rowcount > 0

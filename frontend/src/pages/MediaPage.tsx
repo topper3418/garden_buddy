@@ -6,10 +6,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { API_QUERY_LIMIT_MAX, clampQueryLimit } from '../api/limits'
 import { queryMedia } from '../api/media'
 import { MediaCard } from '../components/MediaCard'
-import { listPlantTypes } from '../api/plantTypes'
+import { listTags } from '../api/tags'
 import { querySpecies } from '../api/species'
 import { useIsMobile } from '../hooks/useIsMobile'
-import type { Media, PlantTypeListItem, Species } from '../types/models'
+import type { Media, TagListItem, Species } from '../types/models'
 
 type SpeciesTreeOption = {
   title: string
@@ -63,12 +63,12 @@ export function MediaPage() {
   const [items, setItems] = useState<Media[]>([])
   const [speciesOptions, setSpeciesOptions] = useState<Species[]>([])
   const [speciesTreeOptions, setSpeciesTreeOptions] = useState<SpeciesTreeOption[]>([])
-  const [typeOptions, setTypeOptions] = useState<PlantTypeListItem[]>([])
+  const [tagOptions, setTagOptions] = useState<TagListItem[]>([])
   const [isFilterModalOpen, setFilterModalOpen] = useState(false)
   const [filterForm] = Form.useForm<{
     nameContains?: string
     speciesIds?: number[]
-    plantTypeId?: number
+    tagId?: number
     limit?: number
     offset?: number
   }>()
@@ -78,7 +78,7 @@ export function MediaPage() {
     .getAll('speciesIds')
     .map((value) => Number(value))
     .filter((value) => Number.isInteger(value) && value > 0)
-  const plantTypeId = searchParams.get('plantTypeId') ? Number(searchParams.get('plantTypeId')) : undefined
+  const tagId = searchParams.get('tagId') ? Number(searchParams.get('tagId')) : undefined
   const limit = clampQueryLimit(searchParams.get('limit') ? Number(searchParams.get('limit')) : API_QUERY_LIMIT_MAX)
   const offset = searchParams.get('offset') ? Number(searchParams.get('offset')) : 0
 
@@ -91,12 +91,12 @@ export function MediaPage() {
       return species.common_name?.trim() || 'Unknown common name'
     })
     .slice(0, 4)
-  const selectedPlantTypeLabel = plantTypeId === undefined
+  const selectedTagLabel = tagId === undefined
     ? undefined
-    : typeOptions.find((item) => item.id === plantTypeId)?.name ?? 'Selected type'
+    : tagOptions.find((item) => item.id === tagId)?.name ?? 'Selected tag'
 
   async function refresh() {
-    const data = await queryMedia({ nameContains, speciesIds, plantTypeId, limit, offset, includeFilePath: true })
+    const data = await queryMedia({ nameContains, speciesIds, tagId, limit, offset, includeFilePath: true })
     setItems(data)
   }
 
@@ -104,11 +104,11 @@ export function MediaPage() {
     async function loadLookups() {
       const [species, types] = await Promise.all([
         querySpecies({ limit: API_QUERY_LIMIT_MAX, offset: 0 }),
-        listPlantTypes(200, 0),
+        listTags(200, 0),
       ])
       setSpeciesOptions(species)
       setSpeciesTreeOptions(buildSpeciesTree(species))
-      setTypeOptions(types.items)
+      setTagOptions(types.items)
     }
 
     void loadLookups()
@@ -116,12 +116,12 @@ export function MediaPage() {
 
   useEffect(() => {
     void refresh()
-  }, [nameContains, speciesIds.join(','), plantTypeId, limit, offset])
+  }, [nameContains, speciesIds.join(','), tagId, limit, offset])
 
   function setFilters(values: {
     nameContains?: string
     speciesIds?: number[]
-    plantTypeId?: number
+    tagId?: number
     limit?: number
     offset?: number
   }) {
@@ -133,7 +133,7 @@ export function MediaPage() {
         params.append('speciesIds', String(speciesId))
       }
     }
-    if (values.plantTypeId !== undefined) params.set('plantTypeId', String(values.plantTypeId))
+    if (values.tagId !== undefined) params.set('tagId', String(values.tagId))
     if (values.limit !== undefined) params.set('limit', String(clampQueryLimit(values.limit)))
     if (values.offset !== undefined) params.set('offset', String(values.offset))
 
@@ -154,7 +154,7 @@ export function MediaPage() {
             filterForm.setFieldsValue({
               nameContains,
               speciesIds,
-              plantTypeId,
+              tagId,
               limit,
               offset,
             })
@@ -170,8 +170,8 @@ export function MediaPage() {
         {selectedSpeciesLabels.length > 0 && (
           <Tag color='blue'>Species: {selectedSpeciesLabels.join(', ')}{speciesIds.length > 4 ? '...' : ''}</Tag>
         )}
-        {selectedPlantTypeLabel && <Tag color='purple'>Type: {selectedPlantTypeLabel}</Tag>}
-        {(nameContains || speciesIds.length > 0 || plantTypeId !== undefined || limit !== 200 || offset !== 0) && (
+        {selectedTagLabel && <Tag color='purple'>Tag: {selectedTagLabel}</Tag>}
+        {(nameContains || speciesIds.length > 0 || tagId !== undefined || limit !== 200 || offset !== 0) && (
           <Button size='small' onClick={() => setFilters({})}>Clear Filters</Button>
         )}
       </Space>
@@ -213,10 +213,10 @@ export function MediaPage() {
               style={{ width: '100%' }}
             />
           </Form.Item>
-          <Form.Item label='Plant Type' name='plantTypeId'>
+          <Form.Item label='Tag' name='tagId'>
             <Select
               allowClear
-              options={typeOptions.map((item) => ({ value: item.id, label: item.name }))}
+              options={tagOptions.map((item) => ({ value: item.id, label: item.name }))}
             />
           </Form.Item>
           <Space style={{ width: '100%' }}>

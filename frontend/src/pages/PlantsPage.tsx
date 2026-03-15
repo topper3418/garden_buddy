@@ -1,15 +1,16 @@
 import { FilterOutlined } from '@ant-design/icons'
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, TreeSelect, Typography, message } from 'antd'
+import { Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, TreeSelect, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { NotesEditor } from '../components/NotesEditor'
 import { API_QUERY_LIMIT_MAX, clampQueryLimit } from '../api/limits'
-import { createPlant, deletePlant, queryPlants, updatePlant } from '../api/plants'
-import { listPlantTypes } from '../api/plantTypes'
+import { listMedia } from '../api/media'
+import { createPlant, queryPlants } from '../api/plants'
+import { listTags } from '../api/tags'
 import { querySpecies } from '../api/species'
 import { useIsMobile } from '../hooks/useIsMobile'
-import type { Plant, PlantCreate, PlantTypeListItem, Species } from '../types/models'
+import type { MediaListItem, PlantCreate, TagListItem, Species, Plant } from '../types/models'
 
 type SpeciesTreeOption = {
   title: string
@@ -63,15 +64,15 @@ export function PlantsPage() {
   const [items, setItems] = useState<Plant[]>([])
   const [speciesOptions, setSpeciesOptions] = useState<Species[]>([])
   const [speciesTreeOptions, setSpeciesTreeOptions] = useState<SpeciesTreeOption[]>([])
-  const [typeOptions, setTypeOptions] = useState<PlantTypeListItem[]>([])
+  const [typeOptions, setTypeOptions] = useState<TagListItem[]>([])
+  const [mediaOptions, setMediaOptions] = useState<MediaListItem[]>([])
   const [isModalOpen, setModalOpen] = useState(false)
   const [isFilterModalOpen, setFilterModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Plant | null>(null)
   const [form] = Form.useForm<PlantCreate>()
   const [filterForm] = Form.useForm<{
     nameContains?: string
     speciesIds?: number[]
-    plantTypeId?: number
+    tagId?: number
     archived?: boolean
     limit?: number
     offset?: number
@@ -82,7 +83,7 @@ export function PlantsPage() {
     .getAll('speciesIds')
     .map((value) => Number(value))
     .filter((value) => Number.isInteger(value) && value > 0)
-  const plantTypeId = searchParams.get('plantTypeId') ? Number(searchParams.get('plantTypeId')) : undefined
+  const tagId = searchParams.get('tagId') ? Number(searchParams.get('tagId')) : undefined
   const archived = searchParams.get('archived') === 'true'
   const limit = clampQueryLimit(searchParams.get('limit') ? Number(searchParams.get('limit')) : API_QUERY_LIMIT_MAX)
   const offset = searchParams.get('offset') ? Number(searchParams.get('offset')) : 0
@@ -95,28 +96,30 @@ export function PlantsPage() {
       return species.common_name?.trim() || 'Unknown common name'
     })
     .slice(0, 4)
-  const selectedPlantTypeLabel = plantTypeId === undefined
+  const selectedTagLabel = tagId === undefined
     ? undefined
-    : typeOptions.find((item) => item.id === plantTypeId)?.name ?? 'Selected type'
+    : typeOptions.find((item) => item.id === tagId)?.name ?? 'Selected tag'
   const speciesSelectOptions = speciesOptions.map((item) => ({
     value: item.id,
     label: item.common_name?.trim() || 'Unknown common name',
   }))
 
   async function refresh() {
-    const data = await queryPlants({ nameContains, speciesIds, plantTypeId, archived, limit, offset })
+    const data = await queryPlants({ nameContains, speciesIds, tagId, archived, limit, offset })
     setItems(data)
   }
 
   useEffect(() => {
     async function loadLookups() {
-      const [species, types] = await Promise.all([
+      const [species, types, media] = await Promise.all([
         querySpecies({ limit: API_QUERY_LIMIT_MAX, offset: 0 }),
-        listPlantTypes(200, 0),
+        listTags(200, 0),
+        listMedia(200, 0, false),
       ])
       setSpeciesOptions(species)
       setSpeciesTreeOptions(buildSpeciesTree(species))
       setTypeOptions(types.items)
+      setMediaOptions(media.items)
     }
 
     void loadLookups()
@@ -124,12 +127,12 @@ export function PlantsPage() {
 
   useEffect(() => {
     void refresh()
-  }, [nameContains, speciesIds.join(','), plantTypeId, archived, limit, offset])
+  }, [nameContains, speciesIds.join(','), tagId, archived, limit, offset])
 
   function setFilters(values: {
     nameContains?: string
     speciesIds?: number[]
-    plantTypeId?: number
+    tagId?: number
     archived?: boolean
     limit?: number
     offset?: number
@@ -142,7 +145,7 @@ export function PlantsPage() {
         params.append('speciesIds', String(speciesId))
       }
     }
-    if (values.plantTypeId !== undefined) params.set('plantTypeId', String(values.plantTypeId))
+    if (values.tagId !== undefined) params.set('tagId', String(values.tagId))
     if (values.archived !== undefined) params.set('archived', String(values.archived))
     if (values.limit !== undefined) params.set('limit', String(clampQueryLimit(values.limit)))
     if (values.offset !== undefined) params.set('offset', String(values.offset))
@@ -156,19 +159,14 @@ export function PlantsPage() {
       name: values.name,
       notes: values.notes,
       species_id: values.species_id ?? null,
-      plant_type_ids: values.plant_type_ids ?? [],
+      tag_ids: values.tag_ids ?? [],
+      main_media_id: values.main_media_id ?? null,
     }
 
-    if (editing) {
-      await updatePlant(editing.id, payload)
-      message.success('Plant updated')
-    } else {
-      await createPlant(payload)
-      message.success('Plant created')
-    }
+    await createPlant(payload)
+    message.success('Plant created')
 
     setModalOpen(false)
-    setEditing(null)
     form.resetFields()
     await refresh()
   }
@@ -188,7 +186,7 @@ export function PlantsPage() {
               filterForm.setFieldsValue({
                 nameContains,
                 speciesIds,
-                plantTypeId,
+                tagId,
                 archived,
                 limit,
                 offset,
@@ -207,9 +205,9 @@ export function PlantsPage() {
         {selectedSpeciesLabels.length > 0 && (
           <Tag color='blue'>Species: {selectedSpeciesLabels.join(', ')}{speciesIds.length > 4 ? '...' : ''}</Tag>
         )}
-        {selectedPlantTypeLabel && <Tag color='purple'>Type: {selectedPlantTypeLabel}</Tag>}
+        {selectedTagLabel && <Tag color='purple'>Tag: {selectedTagLabel}</Tag>}
         <Tag color={archived ? 'gold' : 'green'}>Status: {archived ? 'Archived' : 'Active'}</Tag>
-        {(nameContains || speciesIds.length > 0 || plantTypeId !== undefined || archived || limit !== 200 || offset !== 0) && (
+        {(nameContains || speciesIds.length > 0 || tagId !== undefined || archived || limit !== 200 || offset !== 0) && (
           <Button size='small' onClick={() => setFilters({})}>Clear Filters</Button>
         )}
       </Space>
@@ -239,49 +237,15 @@ export function PlantsPage() {
             ),
           },
           { title: 'Species', render: (_, row) => row.species?.name ?? '-' },
-          { title: 'Types', render: (_, row) => row.plant_types.map((item) => item.name).join(', ') || '-' },
-          {
-            title: 'Actions',
-            render: (_, row) => (
-              <Space wrap>
-                <Button
-                  size='small'
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    setEditing(row)
-                    form.setFieldsValue({
-                      name: row.name,
-                      notes: row.notes ?? undefined,
-                      species_id: row.species_id ?? undefined,
-                      plant_type_ids: row.plant_type_ids,
-                    })
-                    setModalOpen(true)
-                  }}
-                >
-                  Edit
-                </Button>
-                <Popconfirm
-                  title='Delete plant?'
-                  onConfirm={async () => {
-                    await deletePlant(row.id)
-                    message.success('Plant deleted')
-                    await refresh()
-                  }}
-                >
-                  <Button size='small' danger onClick={(event) => event.stopPropagation()}>Delete</Button>
-                </Popconfirm>
-              </Space>
-            ),
-          },
+          { title: 'Tags', render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-' },
         ]}
       />
 
       <Modal
-        title={editing ? 'Edit Plant' : 'Create Plant'}
+        title='Create Plant'
         open={isModalOpen}
         onCancel={() => {
           setModalOpen(false)
-          setEditing(null)
           form.resetFields()
         }}
         onOk={() => void onSubmit()}
@@ -297,11 +261,17 @@ export function PlantsPage() {
               options={speciesSelectOptions}
             />
           </Form.Item>
-          <Form.Item label='Plant Types' name='plant_type_ids'>
+          <Form.Item label='Tags' name='tag_ids'>
             <Select
               mode='multiple'
               allowClear
               options={typeOptions.map((item) => ({ value: item.id, label: item.name }))}
+            />
+          </Form.Item>
+          <Form.Item label='Main Photo' name='main_media_id'>
+            <Select
+              allowClear
+              options={mediaOptions.map((item) => ({ value: item.id, label: item.title || item.filename }))}
             />
           </Form.Item>
           <Form.Item label='Notes' name='notes'>
@@ -334,7 +304,7 @@ export function PlantsPage() {
               style={{ width: '100%' }}
             />
           </Form.Item>
-          <Form.Item label='Plant Type' name='plantTypeId'>
+          <Form.Item label='Tag' name='tagId'>
             <Select
               allowClear
               options={typeOptions.map((item) => ({ value: item.id, label: item.name }))}

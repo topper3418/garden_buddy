@@ -28,21 +28,24 @@ export type SpeciesListItem = {
   plant_count: number
 }
 
-export type PlantType = {
+export type Tag = {
   id: number
   name: string
   notes?: string | null
+  main_media_id?: number | null
   created_at: string
 }
 
-export type PlantTypeCreate = {
+export type TagCreate = {
   name: string
   notes?: string | null
+  main_media_id?: number | null
 }
 
-export type PlantTypeListItem = {
+export type TagListItem = {
   id: number
   name: string
+  main_media_id?: number | null
 }
 
 export type Plant = {
@@ -50,9 +53,10 @@ export type Plant = {
   name: string
   notes?: string | null
   species_id?: number | null
-  plant_type_ids: number[]
+  tag_ids: number[]
+  main_media_id?: number | null
   species?: Species | null
-  plant_types: PlantType[]
+  tags: Tag[]
   created_at: string
 }
 
@@ -60,13 +64,15 @@ export type PlantCreate = {
   name: string
   notes?: string | null
   species_id?: number | null
-  plant_type_ids: number[]
+  tag_ids: number[]
+  main_media_id?: number | null
 }
 
 export type PlantListItem = {
   id: number
   name: string
   species_id?: number | null
+  main_media_id?: number | null
 }
 
 export type Media = {
@@ -76,6 +82,7 @@ export type Media = {
   size: number
   title?: string | null
   plant_id?: number | null
+  tag_id?: number | null
   uploaded_at: string
   file_path?: string | null
 }
@@ -86,6 +93,7 @@ export type MediaCreate = {
   size: number
   title?: string | null
   plant_id?: number | null
+  tag_id?: number | null
 }
 
 export type MediaListItem = {
@@ -94,5 +102,6 @@ export type MediaListItem = {
   mime_type: string
   title?: string | null
   plant_id?: number | null
+  tag_id?: number | null
   file_path?: string | null
 }

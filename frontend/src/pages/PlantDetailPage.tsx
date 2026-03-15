@@ -5,14 +5,15 @@ import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import { askPlantQuestion } from '../api/ai'
 import { queryMedia, uploadMedia } from '../api/media'
 import { MediaCard } from '../components/MediaCard'
 import { NotesEditor } from '../components/NotesEditor'
 import { deletePlant, getPlantById, updatePlant } from '../api/plants'
-import { listPlantTypes } from '../api/plantTypes'
+import { listTags } from '../api/tags'
 import { querySpecies } from '../api/species'
 import { useIsMobile } from '../hooks/useIsMobile'
-import type { Media, Plant, PlantCreate, PlantTypeListItem, Species } from '../types/models'
+import type { Media, Plant, PlantCreate, TagListItem, Species } from '../types/models'
 
 export function PlantDetailPage() {
   const navigate = useNavigate()
@@ -23,10 +24,15 @@ export function PlantDetailPage() {
   const [plant, setPlant] = useState<Plant | null>(null)
   const [mediaItems, setMediaItems] = useState<Media[]>([])
   const [speciesOptions, setSpeciesOptions] = useState<Species[]>([])
-  const [typeOptions, setTypeOptions] = useState<PlantTypeListItem[]>([])
+  const [tagOptions, setTagOptions] = useState<TagListItem[]>([])
   const [isEditModalOpen, setEditModalOpen] = useState(false)
   const [isAttachModalOpen, setAttachModalOpen] = useState(false)
   const [attachTitle, setAttachTitle] = useState('')
+  const [question, setQuestion] = useState('')
+  const [isAskingQuestion, setAskingQuestion] = useState(false)
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null)
+  const [aiSuggestedNote, setAiSuggestedNote] = useState<string | null>(null)
+  const [isApplyingSuggestedNote, setApplyingSuggestedNote] = useState(false)
   const [form] = Form.useForm<PlantCreate>()
 
   const attachUploadProps: UploadProps = {
@@ -60,17 +66,17 @@ export function PlantDetailPage() {
     }
 
     try {
-      const [plantRecord, media, species, plantTypes] = await Promise.all([
+      const [plantRecord, media, species, tags] = await Promise.all([
           getPlantById(parsedPlantId, true),
         queryMedia({ plantId: parsedPlantId, limit: 200, offset: 0, includeFilePath: true }),
         querySpecies({ limit: 200, offset: 0 }),
-        listPlantTypes(200, 0),
+        listTags(200, 0),
       ])
 
       setPlant(plantRecord)
       setMediaItems(media)
       setSpeciesOptions(species)
-      setTypeOptions(plantTypes.items)
+      setTagOptions(tags.items)
     } catch {
       message.error('Plant not found')
       navigate('/plants')
@@ -83,6 +89,46 @@ export function PlantDetailPage() {
 
   if (!plant) {
     return null
+  }
+  const plantIdValue = plant.id
+  const plantNotesValue = plant.notes
+
+  async function onAskQuestion() {
+    const trimmed = question.trim()
+    if (!trimmed) {
+      return
+    }
+
+    setAskingQuestion(true)
+    try {
+      const response = await askPlantQuestion(plantIdValue, trimmed)
+      setAiAnswer(response.answer_markdown)
+      setAiSuggestedNote(response.suggested_note_update_markdown ?? null)
+    } catch (error) {
+      message.error((error as Error).message)
+    } finally {
+      setAskingQuestion(false)
+    }
+  }
+
+  async function onApplySuggestedNote() {
+    const suggestion = aiSuggestedNote?.trim()
+    if (!suggestion) {
+      return
+    }
+
+    setApplyingSuggestedNote(true)
+    try {
+      const existingNotes = plantNotesValue?.trim() ?? ''
+      const mergedNotes = existingNotes ? `${existingNotes}\n\n---\n\n${suggestion}` : suggestion
+      await updatePlant(plantIdValue, { notes: mergedNotes })
+      message.success('Plant notes updated from AI suggestion')
+      await loadData()
+    } catch (error) {
+      message.error((error as Error).message)
+    } finally {
+      setApplyingSuggestedNote(false)
+    }
   }
 
   return (
@@ -98,12 +144,20 @@ export function PlantDetailPage() {
               name: plant.name,
               notes: plant.notes ?? undefined,
               species_id: plant.species_id ?? undefined,
-              plant_type_ids: plant.plant_type_ids,
+              tag_ids: plant.tag_ids,
+              main_media_id: plant.main_media_id ?? undefined,
             })
             setEditModalOpen(true)
           }}
         >
           Edit
+        </Button>
+        <Button
+          onClick={() => {
+            document.getElementById('plant-assistant-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+        >
+          AI Assistant
         </Button>
         <Popconfirm
           title='Soft delete this plant?'
@@ -127,12 +181,19 @@ export function PlantDetailPage() {
           <Descriptions.Item label='Name'>{plant.name}</Descriptions.Item>
           <Descriptions.Item label='Species'>{plant.species?.name ?? '-'}</Descriptions.Item>
           <Descriptions.Item label='Common Name'>{plant.species?.common_name ?? '-'}</Descriptions.Item>
-          <Descriptions.Item label='Plant Types'>
+          <Descriptions.Item label='Tags'>
             <Space wrap>
-              {plant.plant_types.length > 0
-                ? plant.plant_types.map((item) => <Tag key={item.id}>{item.name}</Tag>)
+              {plant.tags.length > 0
+                ? plant.tags.map((item) => <Tag key={item.id}>{item.name}</Tag>)
                 : '-'}
             </Space>
+          </Descriptions.Item>
+          <Descriptions.Item label='Main Photo'>
+            {plant.main_media_id
+              ? (mediaItems.find((item) => item.id === plant.main_media_id)?.title
+                  || mediaItems.find((item) => item.id === plant.main_media_id)?.filename
+                  || `Media #${plant.main_media_id}`)
+              : '-'}
           </Descriptions.Item>
           <Descriptions.Item label='Notes'>
             {plant.notes?.trim()
@@ -145,6 +206,45 @@ export function PlantDetailPage() {
           </Descriptions.Item>
           <Descriptions.Item label='Created At'>{plant.created_at}</Descriptions.Item>
         </Descriptions>
+      </Card>
+
+      <Card id='plant-assistant-card' title='Plant Assistant'>
+        <Space direction='vertical' style={{ width: '100%' }} size={12}>
+          <Input.TextArea
+            rows={3}
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder='Ask about this plant care plan, watering cadence, troubleshooting, or seasonal actions.'
+          />
+          <Button
+            type='primary'
+            loading={isAskingQuestion}
+            disabled={question.trim().length < 3}
+            onClick={() => void onAskQuestion()}
+          >
+            Ask AI
+          </Button>
+          {aiAnswer && (
+            <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 12 }}>
+              <ReactMarkdown>{aiAnswer}</ReactMarkdown>
+            </div>
+          )}
+          {aiSuggestedNote && aiSuggestedNote.trim() && (
+            <div style={{ border: '1px dashed #d9d9d9', borderRadius: 8, padding: 12 }}>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+                Suggested note update
+              </Typography.Text>
+              <ReactMarkdown>{aiSuggestedNote}</ReactMarkdown>
+              <Button
+                style={{ marginTop: 8 }}
+                loading={isApplyingSuggestedNote}
+                onClick={() => void onApplySuggestedNote()}
+              >
+                Add Suggestion to Plant Notes
+              </Button>
+            </div>
+          )}
+        </Space>
       </Card>
 
       <Card
@@ -190,7 +290,8 @@ export function PlantDetailPage() {
             name: values.name,
             notes: values.notes,
             species_id: values.species_id ?? null,
-            plant_type_ids: values.plant_type_ids ?? [],
+            tag_ids: values.tag_ids ?? [],
+            main_media_id: values.main_media_id ?? null,
           }
           await updatePlant(plant.id, payload)
           message.success('Plant updated')
@@ -212,11 +313,17 @@ export function PlantDetailPage() {
               }))}
             />
           </Form.Item>
-          <Form.Item label='Plant Types' name='plant_type_ids'>
+          <Form.Item label='Tags' name='tag_ids'>
             <Select
               mode='multiple'
               allowClear
-              options={typeOptions.map((item) => ({ value: item.id, label: item.name }))}
+              options={tagOptions.map((item) => ({ value: item.id, label: item.name }))}
+            />
+          </Form.Item>
+          <Form.Item label='Main Photo' name='main_media_id'>
+            <Select
+              allowClear
+              options={mediaItems.map((item) => ({ value: item.id, label: item.title || item.filename }))}
             />
           </Form.Item>
           <Form.Item label='Notes' name='notes'>

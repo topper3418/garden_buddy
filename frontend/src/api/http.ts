@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const API_BASE = import.meta.env.MODE === 'test'
+  ? 'http://localhost:8000'
+  : (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000')
 
 async function parseJson<T>(response: Response): Promise<T> {
   if (!response.ok) {

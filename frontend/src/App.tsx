@@ -7,7 +7,9 @@ import './App.css'
 
 const DashboardPage = lazy(async () => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const SpeciesPage = lazy(async () => import('./pages/SpeciesPage').then((module) => ({ default: module.SpeciesPage })))
-const PlantTypesPage = lazy(async () => import('./pages/PlantTypesPage').then((module) => ({ default: module.PlantTypesPage })))
+const SpeciesDetailPage = lazy(async () => import('./pages/SpeciesDetailPage').then((module) => ({ default: module.SpeciesDetailPage })))
+const TagsPage = lazy(async () => import('./pages/TagsPage').then((module) => ({ default: module.TagsPage })))
+const TagDetailPage = lazy(async () => import('./pages/TagDetailPage').then((module) => ({ default: module.TagDetailPage })))
 const PlantsPage = lazy(async () => import('./pages/PlantsPage').then((module) => ({ default: module.PlantsPage })))
 const PlantDetailPage = lazy(async () => import('./pages/PlantDetailPage').then((module) => ({ default: module.PlantDetailPage })))
 const MediaPage = lazy(async () => import('./pages/MediaPage').then((module) => ({ default: module.MediaPage })))
@@ -27,7 +29,9 @@ function App() {
         <Route element={<AppShell />}>
           <Route path='/' element={<DashboardPage />} />
           <Route path='/species' element={<SpeciesPage />} />
-          <Route path='/plant-types' element={<PlantTypesPage />} />
+          <Route path='/species/:speciesId' element={<SpeciesDetailPage />} />
+          <Route path='/tags' element={<TagsPage />} />
+          <Route path='/tags/:tagId' element={<TagDetailPage />} />
           <Route path='/plants' element={<PlantsPage />} />
           <Route path='/plants/:plantId' element={<PlantDetailPage />} />
           <Route path='/media' element={<MediaPage />} />

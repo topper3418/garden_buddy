@@ -49,7 +49,7 @@ def wipe_database_and_media() -> None:
 
 def seed_all() -> None:
     species_seed = read_seed_json("species.json")
-    plant_types_seed = read_seed_json("plant_types.json")
+    tags_seed = read_seed_json("tags.json")
     plants_seed = read_seed_json("plants.json")
     media_seed = read_seed_json("media.json")
 
@@ -75,43 +75,58 @@ def seed_all() -> None:
             )
             species_ids_by_name[record["name"]] = require_lastrowid(cur)
 
-        plant_type_ids_by_name: dict[str, int] = {}
-        for record in plant_types_seed:
+        tag_ids_by_name: dict[str, int] = {}
+        tag_main_media_by_name: dict[str, str] = {}
+        for record in tags_seed:
             cur = conn.execute(
                 """
-                INSERT INTO plant_types (name, notes, created_at)
-                VALUES (?, ?, ?)
-                """,
-                (record["name"], record.get("notes"), utc_now_iso()),
-            )
-            plant_type_ids_by_name[record["name"]] = require_lastrowid(cur)
-
-        plant_ids_by_name: dict[str, int] = {}
-        for record in plants_seed:
-            cur = conn.execute(
-                """
-                INSERT INTO plants (name, notes, species_id, created_at)
+                INSERT INTO tags (name, notes, main_media_id, created_at)
                 VALUES (?, ?, ?, ?)
                 """,
                 (
                     record["name"],
                     record.get("notes"),
+                    None,
+                    utc_now_iso(),
+                ),
+            )
+            tag_name = record["name"]
+            tag_ids_by_name[tag_name] = require_lastrowid(cur)
+            if record.get("main_media_filename"):
+                tag_main_media_by_name[tag_name] = record["main_media_filename"]
+
+        plant_ids_by_name: dict[str, int] = {}
+        plant_main_media_by_name: dict[str, str] = {}
+        for record in plants_seed:
+            cur = conn.execute(
+                """
+                INSERT INTO plants (name, notes, species_id, main_media_id, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    record["name"],
+                    record.get("notes"),
                     species_ids_by_name[record["species_name"]],
+                    None,
                     utc_now_iso(),
                 ),
             )
             plant_id = require_lastrowid(cur)
-            plant_ids_by_name[record["name"]] = plant_id
+            plant_name = record["name"]
+            plant_ids_by_name[plant_name] = plant_id
+            if record.get("main_media_filename"):
+                plant_main_media_by_name[plant_name] = record["main_media_filename"]
 
-            for plant_type_name in record.get("plant_type_names", []):
+            for tag_name in record.get("tag_names", []):
                 conn.execute(
                     """
-                    INSERT INTO plant_plant_types (plant_id, plant_type_id)
+                    INSERT INTO plant_tags (plant_id, tag_id)
                     VALUES (?, ?)
                     """,
-                    (plant_id, plant_type_ids_by_name[plant_type_name]),
+                    (plant_id, tag_ids_by_name[tag_name]),
                 )
 
+        media_ids_by_filename: dict[str, int] = {}
         settings.media_path.mkdir(parents=True, exist_ok=True)
         for record in media_seed:
             source_image = SEED_IMAGES_DIR / record["filename"]
@@ -121,19 +136,41 @@ def seed_all() -> None:
 
             shutil.copy2(source_image, destination_image)
 
-            conn.execute(
+            plant_id = None
+            if record.get("plant_name"):
+                plant_id = plant_ids_by_name[record["plant_name"]]
+
+            tag_id = None
+            if record.get("tag_name"):
+                tag_id = tag_ids_by_name[record["tag_name"]]
+
+            cur = conn.execute(
                 """
-                INSERT INTO media (filename, title, mime_type, size, plant_id, uploaded_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO media (filename, title, mime_type, size, plant_id, tag_id, uploaded_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record["filename"],
                     record.get("title"),
                     record.get("mime_type", "image/jpeg"),
                     destination_image.stat().st_size,
-                    plant_ids_by_name[record["plant_name"]],
+                    plant_id,
+                    tag_id,
                     utc_now_iso(),
                 ),
+            )
+            media_ids_by_filename[record["filename"]] = require_lastrowid(cur)
+
+        for plant_name, filename in plant_main_media_by_name.items():
+            conn.execute(
+                "UPDATE plants SET main_media_id = ? WHERE id = ?",
+                (media_ids_by_filename[filename], plant_ids_by_name[plant_name]),
+            )
+
+        for tag_name, filename in tag_main_media_by_name.items():
+            conn.execute(
+                "UPDATE tags SET main_media_id = ? WHERE id = ?",
+                (media_ids_by_filename[filename], tag_ids_by_name[tag_name]),
             )
 
         conn.commit()
@@ -142,12 +179,12 @@ def seed_all() -> None:
 def print_counts() -> None:
     with get_db_connection() as conn:
         species_count = conn.execute("SELECT COUNT(*) FROM species").fetchone()[0]
-        type_count = conn.execute("SELECT COUNT(*) FROM plant_types").fetchone()[0]
+        type_count = conn.execute("SELECT COUNT(*) FROM tags").fetchone()[0]
         plants_count = conn.execute("SELECT COUNT(*) FROM plants").fetchone()[0]
         media_count = conn.execute("SELECT COUNT(*) FROM media").fetchone()[0]
 
     print(f"species: {species_count}")
-    print(f"plant_types: {type_count}")
+    print(f"tags: {type_count}")
     print(f"plants: {plants_count}")
     print(f"media: {media_count}")
 

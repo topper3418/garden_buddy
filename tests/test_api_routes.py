@@ -68,37 +68,53 @@ def test_species_crud_query_and_subspecies_guard(client: TestClient) -> None:
     assert delete_parent.status_code == 204
 
 
-def test_plant_type_crud_and_query(client: TestClient) -> None:
+def test_tag_crud_and_query(client: TestClient) -> None:
     create_resp = client.post(
-        "/plant-types",
+        "/tags",
         json={"name": "perennial", "notes": "comes back every year"},
     )
     assert create_resp.status_code == 201
-    plant_type = create_resp.json()
+    tag = create_resp.json()
 
-    get_resp = client.get(f"/plant-types/{plant_type['id']}")
+    get_resp = client.get(f"/tags/{tag['id']}")
     assert get_resp.status_code == 200
 
-    list_resp = client.get("/plant-types", params={"limit": 10, "offset": 0})
+    list_resp = client.get("/tags", params={"limit": 10, "offset": 0})
     assert list_resp.status_code == 200
     assert len(list_resp.json()["items"]) == 1
 
-    query_resp = client.get("/plant-types/query", params={"notes_contains": "year"})
+    query_resp = client.get("/tags/query", params={"notes_contains": "year"})
     assert query_resp.status_code == 200
     assert len(query_resp.json()) == 1
 
     patch_resp = client.patch(
-        f"/plant-types/{plant_type['id']}",
+        f"/tags/{tag['id']}",
         json={"name": "hardy perennial"},
     )
     assert patch_resp.status_code == 200
     assert patch_resp.json()["name"] == "hardy perennial"
 
-    delete_resp = client.delete(f"/plant-types/{plant_type['id']}")
+    tag_media_resp = client.post(
+        "/media",
+        files={"file": ("tag-cover.jpg", b"\xff\xd8\xff\xe0tagcover", "image/jpeg")},
+        data={"title": "Tag Cover", "tag_id": str(tag["id"])},
+    )
+    assert tag_media_resp.status_code == 201
+    tag_media = tag_media_resp.json()
+    assert tag_media["tag_id"] == tag["id"]
+
+    patch_main_media_resp = client.patch(
+        f"/tags/{tag['id']}",
+        json={"main_media_id": tag_media["id"]},
+    )
+    assert patch_main_media_resp.status_code == 200
+    assert patch_main_media_resp.json()["main_media_id"] == tag_media["id"]
+
+    delete_resp = client.delete(f"/tags/{tag['id']}")
     assert delete_resp.status_code == 204
 
 
-def test_plants_crud_query_and_type_links(client: TestClient) -> None:
+def test_plants_crud_query_and_tag_links(client: TestClient) -> None:
     species = client.post(
         "/species",
         json={"name": "Solanum lycopersicum", "common_name": "Tomato"},
@@ -109,8 +125,8 @@ def test_plants_crud_query_and_type_links(client: TestClient) -> None:
         json={"name": "Ocimum basilicum", "common_name": "Basil"},
     ).json()
 
-    type_1 = client.post("/plant-types", json={"name": "annual", "notes": "one season"}).json()
-    type_2 = client.post("/plant-types", json={"name": "edible", "notes": "food"}).json()
+    tag_1 = client.post("/tags", json={"name": "annual", "notes": "one season"}).json()
+    tag_2 = client.post("/tags", json={"name": "edible", "notes": "food"}).json()
 
     create_resp = client.post(
         "/plants",
@@ -118,12 +134,12 @@ def test_plants_crud_query_and_type_links(client: TestClient) -> None:
             "name": "Cherry Tomato",
             "notes": "Planted in raised bed",
             "species_id": species["id"],
-            "plant_type_ids": [type_1["id"], type_2["id"]],
+            "tag_ids": [tag_1["id"], tag_2["id"]],
         },
     )
     assert create_resp.status_code == 201
     plant = create_resp.json()
-    assert len(plant["plant_types"]) == 2
+    assert len(plant["tags"]) == 2
 
     list_resp = client.get("/plants", params={"limit": 10, "offset": 0})
     assert list_resp.status_code == 200
@@ -131,7 +147,7 @@ def test_plants_crud_query_and_type_links(client: TestClient) -> None:
 
     query_resp = client.get(
         "/plants/query",
-        params={"name_contains": "Cherry", "plant_type_id": type_1["id"]},
+        params={"name_contains": "Cherry", "tag_id": tag_1["id"]},
     )
     assert query_resp.status_code == 200
     assert len(query_resp.json()) == 1
@@ -142,7 +158,7 @@ def test_plants_crud_query_and_type_links(client: TestClient) -> None:
             "name": "Kitchen Basil",
             "notes": "Countertop pot",
             "species_id": species_2["id"],
-            "plant_type_ids": [type_1["id"]],
+            "tag_ids": [tag_1["id"]],
         },
     )
     assert second_plant_resp.status_code == 201
@@ -154,21 +170,37 @@ def test_plants_crud_query_and_type_links(client: TestClient) -> None:
     assert query_multi_species_resp.status_code == 200
     assert len(query_multi_species_resp.json()) == 2
 
+    plant_media_resp = client.post(
+        "/media",
+        files={"file": ("plant-main.jpg", b"\xff\xd8\xff\xe0plantmain", "image/jpeg")},
+        data={"title": "Plant Main", "plant_id": str(plant["id"])},
+    )
+    assert plant_media_resp.status_code == 201
+    plant_media = plant_media_resp.json()
+
+    patch_main_media_resp = client.patch(
+        f"/plants/{plant['id']}",
+        json={"main_media_id": plant_media["id"]},
+    )
+    assert patch_main_media_resp.status_code == 200
+    assert patch_main_media_resp.json()["main_media_id"] == plant_media["id"]
+
     patch_resp = client.patch(
         f"/plants/{plant['id']}",
-        json={"notes": "Updated note", "plant_type_ids": [type_1["id"]]},
+        json={"notes": "Updated note", "tag_ids": [tag_1["id"]]},
     )
     assert patch_resp.status_code == 200
     assert patch_resp.json()["notes"] == "Updated note"
-    assert len(patch_resp.json()["plant_types"]) == 1
+    assert len(patch_resp.json()["tags"]) == 1
+    assert patch_resp.json()["main_media_id"] == plant_media["id"]
 
-    add_type_resp = client.put(f"/plants/{plant['id']}/types/{type_2['id']}")
-    assert add_type_resp.status_code == 200
-    assert len(add_type_resp.json()["plant_types"]) == 2
+    add_tag_resp = client.put(f"/plants/{plant['id']}/tags/{tag_2['id']}")
+    assert add_tag_resp.status_code == 200
+    assert len(add_tag_resp.json()["tags"]) == 2
 
-    remove_type_resp = client.delete(f"/plants/{plant['id']}/types/{type_2['id']}")
-    assert remove_type_resp.status_code == 200
-    assert len(remove_type_resp.json()["plant_types"]) == 1
+    remove_tag_resp = client.delete(f"/plants/{plant['id']}/tags/{tag_2['id']}")
+    assert remove_tag_resp.status_code == 200
+    assert len(remove_tag_resp.json()["tags"]) == 1
 
     delete_resp = client.delete(f"/plants/{plant['id']}")
     assert delete_resp.status_code == 204
@@ -199,19 +231,27 @@ def test_media_upload_query_file_and_delete_by_id(client: TestClient) -> None:
 
     plant_resp = client.post(
         "/plants",
-        json={"name": "Media Linked Plant", "notes": "", "species_id": species["id"], "plant_type_ids": []},
+        json={"name": "Media Linked Plant", "notes": "", "species_id": species["id"], "tag_ids": []},
     )
     assert plant_resp.status_code == 201
     plant = plant_resp.json()
 
+    tag_resp = client.post(
+        "/tags",
+        json={"name": "photo-target", "notes": "for media filter"},
+    )
+    assert tag_resp.status_code == 201
+    tag_id = tag_resp.json()["id"]
+
     upload_resp = client.post(
         "/media",
         files={"file": ("leaf.jpg", b"\xff\xd8\xff\xe0testjpeg", "image/jpeg")},
-        data={"title": "Leaf Closeup", "plant_id": str(plant["id"])},
+        data={"title": "Leaf Closeup", "plant_id": str(plant["id"]), "tag_id": str(tag_id)},
     )
     assert upload_resp.status_code == 201
     media = upload_resp.json()
     assert media["plant_id"] == plant["id"]
+    assert media["tag_id"] == tag_id
 
     media_file = settings.media_path / media["filename"]
     assert media_file.exists()
@@ -233,27 +273,29 @@ def test_media_upload_query_file_and_delete_by_id(client: TestClient) -> None:
     assert query_by_species_resp.status_code == 200
     assert len(query_by_species_resp.json()) == 1
 
-    type_resp = client.post(
-        "/plant-types",
-        json={"name": "photo-target", "notes": "for media filter"},
-    )
-    assert type_resp.status_code == 201
-    type_id = type_resp.json()["id"]
+    query_by_tag_resp = client.get("/media/query", params={"tag_id": tag_id})
+    assert query_by_tag_resp.status_code == 200
+    assert len(query_by_tag_resp.json()) == 1
 
-    attach_type_resp = client.put(f"/plants/{plant['id']}/types/{type_id}")
-    assert attach_type_resp.status_code == 200
+    patch_tag_main_media_resp = client.patch(f"/tags/{tag_id}", json={"main_media_id": media["id"]})
+    assert patch_tag_main_media_resp.status_code == 200
+    assert patch_tag_main_media_resp.json()["main_media_id"] == media["id"]
 
-    query_by_type_resp = client.get("/media/query", params={"plant_type_id": type_id})
-    assert query_by_type_resp.status_code == 200
-    assert len(query_by_type_resp.json()) == 1
+    patch_plant_main_media_resp = client.patch(f"/plants/{plant['id']}", json={"main_media_id": media["id"]})
+    assert patch_plant_main_media_resp.status_code == 200
+    assert patch_plant_main_media_resp.json()["main_media_id"] == media["id"]
 
     file_resp = client.get(f"/media/{media['id']}/file")
     assert file_resp.status_code == 200
 
-    patch_resp = client.patch(f"/media/{media['id']}", json={"title": "Updated Leaf", "plant_id": None})
+    patch_resp = client.patch(
+        f"/media/{media['id']}",
+        json={"title": "Updated Leaf", "plant_id": None, "tag_id": None},
+    )
     assert patch_resp.status_code == 200
     assert patch_resp.json()["title"] == "Updated Leaf"
     assert patch_resp.json()["plant_id"] is None
+    assert patch_resp.json()["tag_id"] is None
 
     delete_resp = client.delete(f"/media/{media['id']}")
     assert delete_resp.status_code == 204
@@ -283,7 +325,7 @@ def test_media_delete_by_filename_endpoint(client: TestClient) -> None:
 def test_soft_delete_plant_preserves_attached_media(client: TestClient) -> None:
     plant_resp = client.post(
         "/plants",
-        json={"name": "Archive Test Plant", "notes": "## Keep this note", "species_id": None, "plant_type_ids": []},
+        json={"name": "Archive Test Plant", "notes": "## Keep this note", "species_id": None, "tag_ids": []},
     )
     assert plant_resp.status_code == 201
     plant = plant_resp.json()

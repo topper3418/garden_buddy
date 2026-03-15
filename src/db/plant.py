@@ -1,29 +1,26 @@
 """Plant database helpers.
 
-Manages the ``plants`` table and the ``plant_plant_types`` many-to-many join
-table that links plants to their associated plant types.
-
-Notes field stores Markdown text; newlines and formatting are preserved as-is
-since SQLite TEXT columns store arbitrary Unicode without modification.
+Manages the ``plants`` table and the ``plant_tags`` many-to-many join table
+that links plants to their associated tags.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Optional
-from typing import cast
+from typing import Any, Optional, cast
 
 from src.db.connection import get_db_connection
 
 
 def init_plant_tables() -> None:
-    """Create the plants and plant_plant_types tables if they don't exist."""
+    """Create the plants and plant_tags tables if they don't exist."""
     with get_db_connection() as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS plants (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                name       TEXT NOT NULL,
-                notes      TEXT,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                notes TEXT,
                 species_id INTEGER REFERENCES species(id) ON DELETE SET NULL,
+                main_media_id INTEGER REFERENCES media(id) ON DELETE SET NULL,
                 created_at TEXT NOT NULL,
                 deleted_at TEXT
             )
@@ -31,10 +28,10 @@ def init_plant_tables() -> None:
         )
         conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS plant_plant_types (
-                plant_id      INTEGER NOT NULL REFERENCES plants(id) ON DELETE CASCADE,
-                plant_type_id INTEGER NOT NULL REFERENCES plant_types(id) ON DELETE CASCADE,
-                PRIMARY KEY (plant_id, plant_type_id)
+            CREATE TABLE IF NOT EXISTS plant_tags (
+                plant_id INTEGER NOT NULL REFERENCES plants(id) ON DELETE CASCADE,
+                tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+                PRIMARY KEY (plant_id, tag_id)
             )
             """
         )
@@ -45,44 +42,26 @@ def insert_plant(
     name: str,
     notes: Optional[str] = None,
     species_id: Optional[int] = None,
+    main_media_id: Optional[int] = None,
 ) -> int:
-    """Insert a new plant record and return its row id.
-
-    Args:
-        name: Display name of the plant.
-        notes: Optional Markdown-formatted notes. Newlines are preserved.
-        species_id: Optional FK to the species table.
-
-    Returns:
-        The row id of the newly inserted plant.
-    """
+    """Insert a new plant record and return its row id."""
     with get_db_connection() as conn:
         cur = conn.execute(
             """
-            INSERT INTO plants (name, notes, species_id, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO plants (name, notes, species_id, main_media_id, created_at)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (name, notes, species_id, datetime.now(timezone.utc).isoformat()),
+            (name, notes, species_id, main_media_id, datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
         return cur.lastrowid  # type: ignore[return-value]
 
 
 def get_plant_by_id(plant_id: int, *, include_deleted: bool = False) -> Optional[dict]:
-    """Retrieve a plant record by id.
-
-    Args:
-        plant_id: Primary key of the plant row.
-
-    Returns:
-        A dict of column values, or ``None`` if not found.
-    """
+    """Retrieve a plant record by id."""
     with get_db_connection() as conn:
         if include_deleted:
-            row = conn.execute(
-                "SELECT * FROM plants WHERE id = ?",
-                (plant_id,),
-            ).fetchone()
+            row = conn.execute("SELECT * FROM plants WHERE id = ?", (plant_id,)).fetchone()
         else:
             row = conn.execute(
                 "SELECT * FROM plants WHERE id = ? AND deleted_at IS NULL",
@@ -91,22 +70,15 @@ def get_plant_by_id(plant_id: int, *, include_deleted: bool = False) -> Optional
         return dict(row) if row else None
 
 
-def get_plant_types_for_plant(plant_id: int) -> list[dict]:
-    """Return all plant types assigned to a given plant.
-
-    Args:
-        plant_id: The plant to look up types for.
-
-    Returns:
-        A list of plant_type dicts joined from the plant_types table.
-    """
+def get_tags_for_plant(plant_id: int) -> list[dict]:
+    """Return all tags assigned to a given plant."""
     with get_db_connection() as conn:
         rows = conn.execute(
             """
-            SELECT pt.* FROM plant_types pt
-            JOIN plant_plant_types ppt ON ppt.plant_type_id = pt.id
-            WHERE ppt.plant_id = ?
-            ORDER BY pt.name
+            SELECT t.* FROM tags t
+            JOIN plant_tags pt ON pt.tag_id = t.id
+            WHERE pt.plant_id = ?
+            ORDER BY t.name
             """,
             (plant_id,),
         ).fetchall()
@@ -119,7 +91,7 @@ def list_plants(limit: int, offset: int, archived: bool = False) -> list[dict]:
     with get_db_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, name, species_id
+            SELECT id, name, species_id, main_media_id
             FROM plants
             WHERE {archived_clause}
             ORDER BY created_at DESC
@@ -133,7 +105,7 @@ def list_plants(limit: int, offset: int, archived: bool = False) -> list[dict]:
 def query_plants(
     name_contains: str | None,
     species_ids: list[int] | None,
-    plant_type_id: int | None,
+    tag_id: int | None,
     archived: bool,
     limit: int,
     offset: int,
@@ -143,10 +115,10 @@ def query_plants(
     clauses: list[str] = []
     params: list[Any] = []
 
-    if plant_type_id is not None:
-        joins += " INNER JOIN plant_plant_types ppt ON ppt.plant_id = p.id"
-        clauses.append("ppt.plant_type_id = ?")
-        params.append(plant_type_id)
+    if tag_id is not None:
+        joins += " INNER JOIN plant_tags pt ON pt.plant_id = p.id"
+        clauses.append("pt.tag_id = ?")
+        params.append(tag_id)
 
     if name_contains:
         clauses.append("p.name LIKE ?")
@@ -159,10 +131,7 @@ def query_plants(
 
     where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     deleted_clause = "p.deleted_at IS NOT NULL" if archived else "p.deleted_at IS NULL"
-    if where_sql:
-        where_sql = f"{where_sql} AND {deleted_clause}"
-    else:
-        where_sql = f"WHERE {deleted_clause}"
+    where_sql = f"{where_sql} AND {deleted_clause}" if where_sql else f"WHERE {deleted_clause}"
 
     with get_db_connection() as conn:
         rows = conn.execute(
@@ -185,97 +154,76 @@ def update_plant(
     name: str | None,
     notes: str | None,
     species_id: int | None | object,
-    plant_type_ids: list[int] | object,
+    tag_ids: list[int] | object,
+    main_media_id: int | None | object,
     unset_sentinel: object,
 ) -> bool:
-    """Update mutable plant fields and optionally replace type links."""
+    """Update mutable plant fields and optionally replace tag links."""
     current = get_plant_by_id(plant_id)
     if current is None:
         return False
 
-    resolved_species_id = (
-        current["species_id"] if species_id is unset_sentinel else species_id
-    )
+    resolved_species_id = current["species_id"] if species_id is unset_sentinel else species_id
+    resolved_main_media_id = current["main_media_id"] if main_media_id is unset_sentinel else main_media_id
 
     with get_db_connection() as conn:
         conn.execute(
             """
             UPDATE plants
-            SET name = ?, notes = ?, species_id = ?
+            SET name = ?, notes = ?, species_id = ?, main_media_id = ?
             WHERE id = ?
             """,
             (
                 name if name is not None else current["name"],
                 notes if notes is not None else current["notes"],
                 resolved_species_id,
+                resolved_main_media_id,
                 plant_id,
             ),
         )
 
-        if plant_type_ids is not unset_sentinel:
-            resolved_plant_type_ids = cast(list[int], plant_type_ids)
-            conn.execute("DELETE FROM plant_plant_types WHERE plant_id = ?", (plant_id,))
-            for plant_type_id in resolved_plant_type_ids:
+        if tag_ids is not unset_sentinel:
+            resolved_tag_ids = cast(list[int], tag_ids)
+            conn.execute("DELETE FROM plant_tags WHERE plant_id = ?", (plant_id,))
+            for tag_value in resolved_tag_ids:
                 conn.execute(
-                    "INSERT OR IGNORE INTO plant_plant_types (plant_id, plant_type_id) VALUES (?, ?)",
-                    (plant_id, plant_type_id),
+                    "INSERT OR IGNORE INTO plant_tags (plant_id, tag_id) VALUES (?, ?)",
+                    (plant_id, tag_value),
                 )
 
         conn.commit()
         return True
 
 
-def add_plant_type_to_plant(plant_id: int, plant_type_id: int) -> None:
-    """Associate a plant type with a plant (insert into the join table).
-
-    Silently no-ops if the association already exists.
-
-    Args:
-        plant_id: The plant to update.
-        plant_type_id: The plant type to attach.
-    """
+def add_tag_to_plant(plant_id: int, tag_id: int) -> None:
+    """Associate a tag with a plant."""
     with get_db_connection() as conn:
         conn.execute(
             """
-            INSERT OR IGNORE INTO plant_plant_types (plant_id, plant_type_id)
+            INSERT OR IGNORE INTO plant_tags (plant_id, tag_id)
             VALUES (?, ?)
             """,
-            (plant_id, plant_type_id),
+            (plant_id, tag_id),
         )
         conn.commit()
 
 
-def remove_plant_type_from_plant(plant_id: int, plant_type_id: int) -> bool:
-    """Remove a plant type association from a plant.
-
-    Args:
-        plant_id: The plant to update.
-        plant_type_id: The plant type to detach.
-
-    Returns:
-        ``True`` if the association was removed, ``False`` if it didn't exist.
-    """
+def remove_tag_from_plant(plant_id: int, tag_id: int) -> bool:
+    """Remove a tag association from a plant."""
     with get_db_connection() as conn:
         cur = conn.execute(
             """
-            DELETE FROM plant_plant_types
-            WHERE plant_id = ? AND plant_type_id = ?
+            DELETE FROM plant_tags
+            WHERE plant_id = ? AND tag_id = ?
             """,
-            (plant_id, plant_type_id),
+            (plant_id, tag_id),
         )
         conn.commit()
         return cur.rowcount > 0
 
 
 def delete_plant(plant_id: int) -> bool:
-    """Soft-delete a plant by setting ``deleted_at``.
-
-    Args:
-        plant_id: Primary key of the plant to delete.
-
-    Returns:
-        ``True`` if soft-deleted, ``False`` if not found.
-    """
+    """Soft-delete a plant by setting ``deleted_at``."""
     with get_db_connection() as conn:
         cur = conn.execute(
             "UPDATE plants SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL",

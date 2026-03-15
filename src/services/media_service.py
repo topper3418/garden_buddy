@@ -57,7 +57,7 @@ def query_media(
     mime_type: str | None = None,
     plant_id: int | None = None,
     species_ids: list[int] | None = None,
-    plant_type_id: int | None = None,
+    tag_id: int | None = None,
     min_size: int | None = None,
     max_size: int | None = None,
     limit: int = 50,
@@ -74,7 +74,7 @@ def query_media(
         mime_type=mime_type,
         plant_id=plant_id,
         species_ids=species_ids,
-        plant_type_id=plant_type_id,
+        tag_id=tag_id,
         min_size=min_size,
         max_size=max_size,
         limit=limit,
@@ -106,6 +106,7 @@ def create_media(payload: MediaCreate) -> Media:
         size=payload.size,
         title=payload.title,
         plant_id=payload.plant_id,
+        tag_id=payload.tag_id,
     )
     media = get_media_by_id(media_id)
     if not media:
@@ -120,6 +121,7 @@ def update_media(
     mime_type: str | None | object = _UNSET,
     size: int | None | object = _UNSET,
     plant_id: int | None | object = _UNSET,
+    tag_id: int | None | object = _UNSET,
 ) -> Media | None:
     """Update mutable metadata fields and return updated media."""
     ensure_tables()
@@ -132,6 +134,8 @@ def update_media(
         db_kwargs["size"] = size
     if plant_id is not _UNSET:
         db_kwargs["plant_id"] = plant_id
+    if tag_id is not _UNSET:
+        db_kwargs["tag_id"] = tag_id
 
     updated = db_update_media(
         media_id,

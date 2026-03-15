@@ -18,6 +18,7 @@ from src.services.media_service import (
     update_media,
 )
 from src.services.plant_service import get_plant_by_id as get_plant_record_by_id
+from src.services.tag_service import get_tag_by_id as get_tag_record_by_id
 from src.settings import settings
 
 router = APIRouter(prefix="/media", tags=["media"])
@@ -39,7 +40,7 @@ def query_media_endpoint(
     mime_type: str | None = None,
     plant_id: int | None = None,
     species_ids: list[int] | None = Query(default=None),
-    plant_type_id: int | None = None,
+    tag_id: int | None = None,
     min_size: int | None = Query(default=None, ge=0),
     max_size: int | None = Query(default=None, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
@@ -52,7 +53,7 @@ def query_media_endpoint(
         mime_type=mime_type,
         plant_id=plant_id,
         species_ids=species_ids,
-        plant_type_id=plant_type_id,
+        tag_id=tag_id,
         min_size=min_size,
         max_size=max_size,
         limit=limit,
@@ -82,9 +83,12 @@ async def upload_media_endpoint(
     file: UploadFile = File(...),
     title: str | None = Form(default=None),
     plant_id: int | None = Form(default=None),
+    tag_id: int | None = Form(default=None),
 ) -> Media:
     if plant_id is not None and not get_plant_record_by_id(plant_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
+    if tag_id is not None and not get_tag_record_by_id(tag_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
 
     unique_filename = await save_image(file)
     file_path = Path(settings.media_path) / unique_filename
@@ -95,6 +99,7 @@ async def upload_media_endpoint(
         mime_type=file.content_type or "application/octet-stream",
         size=file_path.stat().st_size,
         plant_id=plant_id,
+        tag_id=tag_id,
     )
     return create_media(payload)
 
@@ -110,9 +115,13 @@ def update_media_endpoint(media_id: int, payload: MediaUpdate) -> Media:
         kwargs["size"] = payload.size
     if "plant_id" in payload.model_fields_set:
         kwargs["plant_id"] = payload.plant_id
+    if "tag_id" in payload.model_fields_set:
+        kwargs["tag_id"] = payload.tag_id
 
     if "plant_id" in kwargs and kwargs["plant_id"] is not None and not get_plant_record_by_id(kwargs["plant_id"]):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
+    if "tag_id" in kwargs and kwargs["tag_id"] is not None and not get_tag_record_by_id(kwargs["tag_id"]):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
 
     updated = update_media(media_id, **kwargs)
     if not updated:

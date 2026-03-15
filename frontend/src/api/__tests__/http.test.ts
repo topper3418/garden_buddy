@@ -44,9 +44,9 @@ describe('http api helpers', () => {
   it('putJson uses PUT', async () => {
     const fetchMock = mockFetchJson({ ok: true })
 
-    await putJson('/plants/1/types/2')
+    await putJson('/plants/1/tags/2')
 
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/plants/1/types/2', { method: 'PUT' })
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/plants/1/tags/2', { method: 'PUT' })
   })
 
   it('deleteRequest handles 204', async () => {

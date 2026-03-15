@@ -1,0 +1,12 @@
+[
+  {"name": "Annual", "notes": "Seeded tag", "main_media_filename": "backyard_cherry.jpg"},
+  {"name": "Perennial", "notes": "Seeded tag", "main_media_filename": "front_lavender.jpg"},
+  {"name": "Herb", "notes": "Seeded tag", "main_media_filename": "kitchen_basil.jpg"},
+  {"name": "Vegetable", "notes": "Seeded tag", "main_media_filename": "pepper_row_a.jpg"},
+  {"name": "Flowering", "notes": "Seeded tag", "main_media_filename": "rose_trellis.jpg"},
+  {"name": "Edible", "notes": "Seeded tag", "main_media_filename": "patio_mint.jpg"},
+  {"name": "Indoor", "notes": "Seeded tag", "main_media_filename": "window_basil_2.jpg"},
+  {"name": "Outdoor", "notes": "Seeded tag", "main_media_filename": "lavender_border.jpg"},
+  {"name": "Drought Tolerant", "notes": "Seeded tag", "main_media_filename": "front_lavender.jpg"},
+  {"name": "Companion Plant", "notes": "Seeded tag", "main_media_filename": "herb_corner.jpg"}
+]

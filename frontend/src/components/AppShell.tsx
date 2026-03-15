@@ -1,5 +1,5 @@
 import { AppstoreOutlined, CameraOutlined, MenuOutlined, TagsOutlined } from '@ant-design/icons'
-import { Button, Drawer, Layout, Menu, Typography } from 'antd'
+import { Button, Drawer, Layout, Menu } from 'antd'
 import type { MenuProps } from 'antd'
 import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -12,7 +12,7 @@ const { Header, Content, Sider } = Layout
 const items: MenuProps['items'] = [
   { key: '/', icon: <AppstoreOutlined />, label: <Link to='/'>Dashboard</Link> },
   { key: '/species', icon: <AppstoreOutlined />, label: <Link to='/species'>Species</Link> },
-  { key: '/plant-types', icon: <TagsOutlined />, label: <Link to='/plant-types'>Plant Types</Link> },
+  { key: '/tags', icon: <TagsOutlined />, label: <Link to='/tags'>Tags</Link> },
   { key: '/plants', icon: <AppstoreOutlined />, label: <Link to='/plants'>Plants</Link> },
   { key: '/media', icon: <CameraOutlined />, label: <Link to='/media'>Media</Link> },
 ]
@@ -21,7 +21,13 @@ export function AppShell() {
   const location = useLocation()
   const isMobile = useIsMobile()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const selectedKey = location.pathname.startsWith('/plants/') ? '/plants' : location.pathname
+  const selectedKey = location.pathname.startsWith('/plants/')
+    ? '/plants'
+    : location.pathname.startsWith('/species/')
+      ? '/species'
+      : location.pathname.startsWith('/tags/')
+        ? '/tags'
+        : location.pathname
 
   const menu = (
     <Menu
@@ -42,19 +48,16 @@ export function AppShell() {
         </Sider>
       )}
       <Layout>
-        <Header className='app-shell__header'>
-          <Typography.Title level={4} className='app-shell__header-title'>
-            API Control Panel
-          </Typography.Title>
-          {isMobile && (
+        {isMobile && (
+          <Header className='app-shell__header'>
             <Button
               className='app-shell__mobile-menu-button'
               icon={<MenuOutlined />}
               onClick={() => setDrawerOpen(true)}
               aria-label='Open navigation menu'
             />
-          )}
-        </Header>
+          </Header>
+        )}
         <Content className='app-shell__content'>
           <div className='app-shell__content-card'>
             <Outlet />
