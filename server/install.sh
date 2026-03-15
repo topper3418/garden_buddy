@@ -34,22 +34,22 @@ normalize_route() {
   printf '%s\n' "$raw"
 }
 
-detect_default_server_name() {
-  local host_name
-  host_name="$(hostname -f 2>/dev/null || hostname 2>/dev/null || true)"
-
-  if [[ -z "${host_name}" || "${host_name}" == "localhost" || "${host_name}" == "localhost.localdomain" ]]; then
-    printf '_\n'
-    return
-  fi
-
-  printf 'garden.%s\n' "${host_name}"
-}
-
 validate_port() {
   local value="$1"
   [[ "${value}" =~ ^[0-9]+$ ]] || return 1
   (( value >= 1 && value <= 65535 )) || return 1
+}
+
+get_default_route_ipv4() {
+  local preferred
+  preferred="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i += 1) if ($i == "src") { print $(i + 1); exit }}' || true)"
+  if [[ -n "${preferred}" ]]; then
+    printf '%s\n' "${preferred}"
+  fi
+}
+
+get_all_ipv4_addrs() {
+  ip -4 -o addr show scope global 2>/dev/null | awk '{ split($4, parts, "/"); print parts[1] }'
 }
 
 is_port_in_use() {
@@ -74,11 +74,13 @@ set_route_dependent_settings() {
     API_BASE_URL="/api"
     FRONTEND_FALLBACK="index.html"
     APP_ROUTE_REDIRECT_MATCH="= /__garden-buddy-noop__"
+    ROOT_ROUTE_REDIRECT_MATCH="= /__garden-buddy-root-noop__"
   else
     API_ROUTE="${APP_ROUTE}api/"
     API_BASE_URL="${APP_ROUTE}api"
     FRONTEND_FALLBACK="${APP_ROUTE#/}index.html"
     APP_ROUTE_REDIRECT_MATCH="= ${APP_ROUTE%/}"
+    ROOT_ROUTE_REDIRECT_MATCH="= /"
   fi
 }
 
@@ -238,7 +240,7 @@ APP_USER="${APP_USER:-${SUDO_USER:-$(id -un)}}"
 APP_GROUP_INPUT="${APP_GROUP:-}"
 SERVICE_NAME="${SERVICE_NAME:-garden-buddy}"
 STATIC_DIR="${STATIC_DIR:-/var/www/${SERVICE_NAME}}"
-SERVER_NAME="${SERVER_NAME:-$(detect_default_server_name)}"
+SERVER_NAME='_'
 APP_ROUTE_INPUT="${APP_ROUTE:-}"
 APP_PORT="${APP_PORT:-8001}"
 
@@ -357,6 +359,7 @@ sed \
   -e "s|__STATIC_DIR__|${STATIC_DIR}|g" \
   -e "s|__SERVER_NAME__|${SERVER_NAME}|g" \
   -e "s|__APP_ROUTE__|${APP_ROUTE}|g" \
+  -e "s|__ROOT_ROUTE_REDIRECT_MATCH__|${ROOT_ROUTE_REDIRECT_MATCH}|g" \
   -e "s|__APP_ROUTE_REDIRECT_MATCH__|${APP_ROUTE_REDIRECT_MATCH}|g" \
   -e "s|__API_ROUTE__|${API_ROUTE}|g" \
   -e "s|__APP_PORT__|${APP_PORT}|g" \
@@ -364,7 +367,7 @@ sed \
   "${SCRIPT_DIR}/garden-buddy.nginx.conf.template" > "${NGINX_AVAILABLE}"
 
 ln -sfn "${NGINX_AVAILABLE}" "${NGINX_ENABLED}"
-if [[ "${APP_ROUTE}" == "/" && "${SERVER_NAME}" == "_" && -e /etc/nginx/sites-enabled/default ]]; then
+if [[ -e /etc/nginx/sites-enabled/default ]]; then
   rm -f /etc/nginx/sites-enabled/default
 fi
 
@@ -389,15 +392,30 @@ if ! curl -fsS "http://127.0.0.1${APP_ROUTE}" >/dev/null; then
   exit 1
 fi
 
-HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+PREFERRED_IP="$(get_default_route_ipv4 || true)"
+if [[ -z "${PREFERRED_IP}" ]]; then
+  PREFERRED_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+fi
+mapfile -t ALL_IPV4_ADDRS < <(get_all_ipv4_addrs | awk '!seen[$0]++')
+
 echo
 echo "Garden Buddy deployment complete."
-if [[ "${SERVER_NAME}" == "_" ]]; then
-  echo "App URL: http://${HOST_IP:-<server-ip>}${APP_ROUTE}"
+if [[ -n "${PREFERRED_IP}" ]]; then
+  echo "Preferred app URL: http://${PREFERRED_IP}${APP_ROUTE}"
 else
-  echo "App URL: http://${SERVER_NAME}${APP_ROUTE}"
-  echo "Host fallback URL: http://${HOST_IP:-<server-ip>}${APP_ROUTE}"
+  echo "Preferred app URL: http://<server-ip>${APP_ROUTE}"
 fi
+
+if [[ "${#ALL_IPV4_ADDRS[@]}" -gt 1 ]]; then
+  echo "Other app URLs (choose the one on the same subnet as your client):"
+  for ip in "${ALL_IPV4_ADDRS[@]}"; do
+    if [[ "${ip}" == "${PREFERRED_IP}" ]]; then
+      continue
+    fi
+    echo "  - http://${ip}${APP_ROUTE}"
+  done
+fi
+
 echo "Route prefix: ${APP_ROUTE}"
 echo "Backend port: ${APP_PORT}"
 echo "API base URL for frontend build: ${API_BASE_URL}"

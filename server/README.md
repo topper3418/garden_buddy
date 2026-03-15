@@ -8,14 +8,13 @@ sudo APP_USER=$USER bash server/install.sh
 
 Default installer behavior:
 
-- `SERVER_NAME` defaults to `garden.<hostname>`
+- `SERVER_NAME` is forced to `_` for broad LAN reachability
 - `APP_PORT` defaults to `8001`
 
 Optional overrides:
 
 - `APP_ROUTE=/garden/` to serve from a path prefix
 - `STATIC_DIR=/var/www/garden-buddy` to control where built frontend files are published for nginx
-- `SERVER_NAME=garden.example.com` to pin a specific hostname
 - `APP_PORT=8010` to choose a different backend bind port
 
 The installer prompts for a route prefix.
@@ -34,14 +33,11 @@ The installer prompts for a route prefix.
 You can also skip the prompt by passing `APP_ROUTE`:
 
 ```bash
-sudo SERVER_NAME=your-domain.example.com APP_USER=$USER APP_ROUTE=/garden/ bash server/install.sh
+sudo APP_USER=$USER APP_ROUTE=/garden/ bash server/install.sh
 ```
 
-If you want nginx to listen on any host/IP without hostname matching, set `SERVER_NAME=_`:
-
-```bash
-sudo APP_USER=$USER SERVER_NAME=_ bash server/install.sh
-```
+At completion, installer/update output prints a preferred URL plus other interface URLs.
+Use the URL on the same subnet as your client device.
 
 ## What the installer does
 
