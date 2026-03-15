@@ -34,15 +34,51 @@ normalize_route() {
   printf '%s\n' "$raw"
 }
 
+detect_default_server_name() {
+  local host_name
+  host_name="$(hostname -f 2>/dev/null || hostname 2>/dev/null || true)"
+
+  if [[ -z "${host_name}" || "${host_name}" == "localhost" || "${host_name}" == "localhost.localdomain" ]]; then
+    printf '_\n'
+    return
+  fi
+
+  printf 'garden.%s\n' "${host_name}"
+}
+
+validate_port() {
+  local value="$1"
+  [[ "${value}" =~ ^[0-9]+$ ]] || return 1
+  (( value >= 1 && value <= 65535 )) || return 1
+}
+
+is_port_in_use() {
+  local port="$1"
+
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnH "( sport = :${port} )" | grep -q .
+    return
+  fi
+
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"${port}" -sTCP:LISTEN >/dev/null
+    return
+  fi
+
+  return 1
+}
+
 set_route_dependent_settings() {
   if [[ "${APP_ROUTE}" == "/" ]]; then
     API_ROUTE="/api/"
     API_BASE_URL="/api"
     FRONTEND_FALLBACK="index.html"
+    APP_ROUTE_REDIRECT_MATCH="= /__garden-buddy-noop__"
   else
     API_ROUTE="${APP_ROUTE}api/"
     API_BASE_URL="${APP_ROUTE}api"
     FRONTEND_FALLBACK="${APP_ROUTE#/}index.html"
+    APP_ROUTE_REDIRECT_MATCH="= ${APP_ROUTE%/}"
   fi
 }
 
@@ -54,9 +90,38 @@ find_route_conflicts() {
   for conf in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
     [[ -f "${conf}" ]] || continue
 
+    if [[ "$(basename "${conf}")" == "${SERVICE_NAME}.conf" ]]; then
+      continue
+    fi
+
+    if [[ "${SERVER_NAME}" != "_" ]]; then
+      local -a conf_server_names=()
+      local server_name_matches=false
+      local conf_name
+
+      mapfile -t conf_server_names < <(awk '$1 == "server_name" { for (i = 2; i <= NF; i += 1) { gsub(/;$/, "", $i); print $i } }' "${conf}")
+
+      # If no server_name is declared, treat config as unrelated for named-host installs.
+      if [[ "${#conf_server_names[@]}" -eq 0 ]]; then
+        continue
+      fi
+
+      for conf_name in "${conf_server_names[@]}"; do
+        if [[ "${conf_name}" == "_" || "${SERVER_NAME}" == ${conf_name} ]]; then
+          server_name_matches=true
+          break
+        fi
+      done
+
+      if [[ "${server_name_matches}" != true ]]; then
+        continue
+      fi
+    fi
+
     while read -r location_path; do
       [[ -z "${location_path}" ]] && continue
-      if [[ "${location_path}" != "${route}" ]]; then
+
+      if [[ "${location_path}" != "/" && "${location_path}" != "${route}" && "${route}" != "${location_path}"* && "${location_path}" != "${route}"* ]]; then
         continue
       fi
 
@@ -67,9 +132,57 @@ find_route_conflicts() {
 
       printf '%s\n' "${conf}"
       break
-    done < <(awk '$1 == "location" { gsub(/\{/, "", $2); print $2 }' "${conf}")
+    done < <(awk '$1 == "location" { if ($2 ~ /^(=|\^~|~|~\*)$/) { path = $3 } else { path = $2 } gsub(/\{/, "", path); print path }' "${conf}")
   done
   shopt -u nullglob
+}
+
+resolve_port_conflict() {
+  local current_port="$1"
+
+  echo
+  echo "Backend port '${current_port}' is already in use."
+
+  if [[ ! -t 0 ]]; then
+    echo "Install cancelled because APP_PORT is already in use."
+    echo "Set APP_PORT to a free port or run: sudo bash server/uninstall.sh"
+    exit 1
+  fi
+
+  while true; do
+    echo
+    echo "Choose an action:"
+    echo "  1) Select a new backend port"
+    echo "  2) Run uninstall script now (server/uninstall.sh)"
+    echo "  3) Cancel install"
+    read -r -p "Selection (1/2/3): " selection
+
+    case "${selection}" in
+      1)
+        read -r -p "New backend port (1-65535): " new_port
+        if ! validate_port "${new_port}"; then
+          echo "Invalid port. Enter a number between 1 and 65535."
+          continue
+        fi
+        APP_PORT="${new_port}"
+        return
+        ;;
+      2)
+        read -r -p "Run uninstall now? [y/N]: " confirm_uninstall
+        if [[ "${confirm_uninstall}" =~ ^[Yy]$ ]]; then
+          bash "${SCRIPT_DIR}/uninstall.sh"
+          return
+        fi
+        ;;
+      3)
+        echo "Install cancelled by user."
+        exit 1
+        ;;
+      *)
+        echo "Invalid selection. Please enter 1, 2, or 3."
+        ;;
+    esac
+  done
 }
 
 resolve_route_conflict() {
@@ -125,8 +238,14 @@ APP_USER="${APP_USER:-${SUDO_USER:-$(id -un)}}"
 APP_GROUP_INPUT="${APP_GROUP:-}"
 SERVICE_NAME="${SERVICE_NAME:-garden-buddy}"
 STATIC_DIR="${STATIC_DIR:-/var/www/${SERVICE_NAME}}"
-SERVER_NAME="${SERVER_NAME:-_}"
+SERVER_NAME="${SERVER_NAME:-$(detect_default_server_name)}"
 APP_ROUTE_INPUT="${APP_ROUTE:-}"
+APP_PORT="${APP_PORT:-8001}"
+
+if ! validate_port "${APP_PORT}"; then
+  echo "APP_PORT must be an integer between 1 and 65535."
+  exit 1
+fi
 
 if [[ -z "${APP_ROUTE_INPUT}" && -t 0 ]]; then
   read -r -p "Route prefix for app (blank for '/'; example '/garden/'): " APP_ROUTE_INPUT
@@ -148,6 +267,18 @@ while true; do
   fi
 
   resolve_route_conflict "${route_conflicts[@]}"
+done
+
+existing_service_port=''
+if [[ -f "${SERVICE_FILE}" ]]; then
+  existing_service_port="$(grep -Eo -- '--port[[:space:]]+[0-9]+' "${SERVICE_FILE}" | awk '{print $2}' | head -n 1 || true)"
+fi
+
+while is_port_in_use "${APP_PORT}"; do
+  if [[ -n "${existing_service_port}" && "${APP_PORT}" == "${existing_service_port}" ]]; then
+    break
+  fi
+  resolve_port_conflict "${APP_PORT}"
 done
 
 if ! command -v apt-get >/dev/null 2>&1; then
@@ -218,6 +349,7 @@ sed \
   -e "s|__APP_DIR__|${APP_DIR}|g" \
   -e "s|__APP_USER__|${APP_USER}|g" \
   -e "s|__APP_GROUP__|${APP_GROUP}|g" \
+  -e "s|__APP_PORT__|${APP_PORT}|g" \
   -e "s|__ENV_FILE__|${ENV_FILE}|g" \
   "${SCRIPT_DIR}/garden-buddy.service.template" > "${SERVICE_FILE}"
 
@@ -225,7 +357,9 @@ sed \
   -e "s|__STATIC_DIR__|${STATIC_DIR}|g" \
   -e "s|__SERVER_NAME__|${SERVER_NAME}|g" \
   -e "s|__APP_ROUTE__|${APP_ROUTE}|g" \
+  -e "s|__APP_ROUTE_REDIRECT_MATCH__|${APP_ROUTE_REDIRECT_MATCH}|g" \
   -e "s|__API_ROUTE__|${API_ROUTE}|g" \
+  -e "s|__APP_PORT__|${APP_PORT}|g" \
   -e "s|__FRONTEND_FALLBACK__|${FRONTEND_FALLBACK}|g" \
   "${SCRIPT_DIR}/garden-buddy.nginx.conf.template" > "${NGINX_AVAILABLE}"
 
@@ -243,7 +377,7 @@ systemctl enable --now nginx
 systemctl restart nginx
 
 echo "[9/9] Verifying backend health..."
-if ! curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+if ! curl -fsS "http://127.0.0.1:${APP_PORT}/health" >/dev/null; then
   echo "Warning: backend healthcheck failed. Check logs with:"
   echo "  journalctl -u ${SERVICE_NAME} -n 200 --no-pager"
   exit 1
@@ -258,8 +392,14 @@ fi
 HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 echo
 echo "Garden Buddy deployment complete."
-echo "App URL: http://${HOST_IP:-<server-ip>}${APP_ROUTE}"
+if [[ "${SERVER_NAME}" == "_" ]]; then
+  echo "App URL: http://${HOST_IP:-<server-ip>}${APP_ROUTE}"
+else
+  echo "App URL: http://${SERVER_NAME}${APP_ROUTE}"
+  echo "Host fallback URL: http://${HOST_IP:-<server-ip>}${APP_ROUTE}"
+fi
 echo "Route prefix: ${APP_ROUTE}"
+echo "Backend port: ${APP_PORT}"
 echo "API base URL for frontend build: ${API_BASE_URL}"
 echo "Seed script was NOT run automatically. Start is fresh/unseeded by default."
 echo "Server name configured for nginx: ${SERVER_NAME}"
