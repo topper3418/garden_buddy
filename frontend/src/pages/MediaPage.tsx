@@ -176,17 +176,23 @@ export function MediaPage() {
         )}
       </Space>
 
-      <div style={{ maxHeight: isMobile ? 'none' : 'calc(100vh - 280px)', overflowY: 'auto', paddingRight: isMobile ? 0 : 8 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignContent: 'flex-start', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-          {items.map((item) => (
-            <MediaCard
-              key={item.id}
-              media={item}
-              mode='navigate'
-              onNavigateToPlant={(plantId) => navigate(`/plants/${plantId}`)}
-            />
-          ))}
-        </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(230px, 1fr))',
+          gap: 16,
+          alignContent: 'flex-start',
+        }}
+      >
+        {items.map((item) => (
+          <MediaCard
+            key={item.id}
+            media={item}
+            mode='expand'
+            onNavigateToPlant={(plantId) => navigate(`/plants/${plantId}`)}
+            onRenameMedia={() => void refresh()}
+          />
+        ))}
       </div>
 
       <Modal
@@ -198,6 +204,7 @@ export function MediaPage() {
           setFilters(values)
           setFilterModalOpen(false)
         }}
+        width={isMobile ? '100%' : 640}
       >
         <Form form={filterForm} layout='vertical'>
           <Form.Item label='Name Contains' name='nameContains'>
@@ -219,11 +226,11 @@ export function MediaPage() {
               options={tagOptions.map((item) => ({ value: item.id, label: item.name }))}
             />
           </Form.Item>
-          <Space style={{ width: '100%' }}>
-            <Form.Item label='Limit' name='limit' style={{ flex: 1 }}>
+          <Space style={{ width: '100%' }} direction={isMobile ? 'vertical' : 'horizontal'}>
+            <Form.Item label='Limit' name='limit' style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
               <InputNumber min={1} max={API_QUERY_LIMIT_MAX} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label='Offset' name='offset' style={{ flex: 1 }}>
+            <Form.Item label='Offset' name='offset' style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           </Space>

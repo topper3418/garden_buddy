@@ -6,6 +6,44 @@ body {
   overflow-x: hidden;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+.ant-space {
+  max-width: 100%;
+}
+
+.ant-descriptions-item-content,
+.ant-typography,
+.ant-card-head-title {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .ant-table-wrapper .ant-table-cell {
+    word-break: break-word;
+  }
+
+  .ant-modal {
+    max-width: calc(100vw - 16px);
+    margin: 8px auto;
+  }
+
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-input-number-input,
+  .ant-select-selector,
+  .ant-select-selection-search-input,
+  textarea,
+  select,
+  input,
+  .w-md-editor-text-input,
+  .w-md-editor-text-pre {
+    font-size: 16px !important;
+  }
+}
+
 #root {
   min-height: 100vh;
 }

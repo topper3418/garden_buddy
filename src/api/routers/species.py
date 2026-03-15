@@ -71,6 +71,8 @@ def update_species_endpoint(species_id: int, payload: SpeciesUpdate) -> Species:
         kwargs["notes"] = payload.notes
     if "parent_species_id" in payload.model_fields_set:
         kwargs["parent_species_id"] = payload.parent_species_id
+    if "main_media_id" in payload.model_fields_set:
+        kwargs["main_media_id"] = payload.main_media_id
 
     updated = update_species(species_id, **kwargs)
     if not updated:

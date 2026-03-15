@@ -133,7 +133,7 @@ export function PlantDetailPage() {
 
   return (
     <Space direction='vertical' size={16} style={{ width: '100%' }}>
-      <Space wrap>
+      <Space wrap direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/plants')}>
           Back to Plants
         </Button>
@@ -198,7 +198,7 @@ export function PlantDetailPage() {
           <Descriptions.Item label='Notes'>
             {plant.notes?.trim()
               ? (
-                <div style={{ maxHeight: 240, overflowY: 'auto', paddingRight: 8 }}>
+                <div style={{ maxHeight: isMobile ? 'none' : 240, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
                   <ReactMarkdown>{plant.notes}</ReactMarkdown>
                 </div>
               )
@@ -265,11 +265,11 @@ export function PlantDetailPage() {
         {mediaItems.length === 0 ? (
           <Typography.Text type='secondary'>No media attached to this plant yet.</Typography.Text>
         ) : (
-          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: 'auto', paddingRight: isMobile ? 0 : 8 }}>
+          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
             <Row gutter={[16, 16]}>
               {mediaItems.map((item) => (
                 <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
-                  <MediaCard media={item} mode='expand' />
+                  <MediaCard media={item} mode='expand' onRenameMedia={() => void loadData()} />
                 </Col>
               ))}
             </Row>
@@ -340,6 +340,7 @@ export function PlantDetailPage() {
           setAttachTitle('')
         }}
         footer={null}
+        width={isMobile ? '100%' : 560}
       >
         <Space direction='vertical' style={{ width: '100%' }} size={12}>
           <Input

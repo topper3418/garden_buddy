@@ -1,16 +1,23 @@
-import { Button, Form, Input, Modal, Space, Table, Typography, message } from 'antd'
+import { Button, Form, Image, Input, Modal, Select, Space, Table, Typography, message } from 'antd'
 import type { TableProps } from 'antd'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { generateSpeciesDraft } from '../api/ai'
 import { API_QUERY_LIMIT_MAX } from '../api/limits'
+import { listMedia, mediaFileUrl } from '../api/media'
 import { createSpecies, querySpecies } from '../api/species'
 import { useIsMobile } from '../hooks/useIsMobile'
-import type { SpeciesCreate, Species } from '../types/models'
+import type { SpeciesCreate, Species, MediaListItem } from '../types/models'
 
 type SpeciesTreeNode = Species & {
   children?: SpeciesTreeNode[]
+}
+
+function buildTreeRenderKey(nodes: SpeciesTreeNode[]): string {
+  return nodes
+    .map((node) => `${node.id}:${node.children?.length ?? 0}:${buildTreeRenderKey(node.children ?? [])}`)
+    .join('|')
 }
 
 function buildSpeciesTree(species: Species[]): SpeciesTreeNode[] {
@@ -47,13 +54,21 @@ export function SpeciesPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [items, setItems] = useState<SpeciesTreeNode[]>([])
+  const [speciesOptions, setSpeciesOptions] = useState<Species[]>([])
+  const [mediaOptions, setMediaOptions] = useState<MediaListItem[]>([])
   const [isModalOpen, setModalOpen] = useState(false)
   const [isGeneratingDraft, setGeneratingDraft] = useState(false)
   const [form] = Form.useForm<SpeciesCreate>()
+  const tableRenderKey = buildTreeRenderKey(items)
 
   async function refresh() {
-    const data = await querySpecies({ limit: API_QUERY_LIMIT_MAX, offset: 0 })
+    const [data, media] = await Promise.all([
+      querySpecies({ limit: API_QUERY_LIMIT_MAX, offset: 0 }),
+      listMedia(200, 0, false),
+    ])
+    setSpeciesOptions(data)
     setItems(buildSpeciesTree(data))
+    setMediaOptions(media.items)
   }
 
   useEffect(() => {
@@ -95,25 +110,40 @@ export function SpeciesPage() {
     {
       title: 'Species',
       render: (_, row) => (
-        <div style={{ lineHeight: 1.25, minWidth: 0 }}>
-          <Button
-            type='link'
-            style={{ padding: 0, textAlign: 'left', height: 'auto', whiteSpace: 'normal' }}
-            onClick={() => navigate(`/species/${row.id}`)}
-          >
-            {row.name}
-          </Button>
-          {row.common_name?.trim() && (
-            <Typography.Text type='secondary' style={{ fontSize: 12 }}>
-              {row.common_name}
-            </Typography.Text>
+        <div style={{ lineHeight: 1.25, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          {row.main_media_id && (
+            <Image
+              src={mediaFileUrl(row.main_media_id)}
+              width={36}
+              height={36}
+              style={{ objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+              preview={false}
+              fallback='data:image/gif;base64,R0lGODlhAQABAAAAACw='
+            />
           )}
+          <div style={{ minWidth: 0 }}>
+            <Button
+              type='link'
+              style={{ padding: 0, textAlign: 'left', height: 'auto', whiteSpace: 'normal' }}
+              onClick={(event) => {
+                event.stopPropagation()
+                navigate(`/species/${row.id}`)
+              }}
+            >
+              {row.name}
+            </Button>
+            {row.common_name?.trim() && (
+              <Typography.Text type='secondary' style={{ fontSize: 12 }}>
+                {row.common_name}
+              </Typography.Text>
+            )}
+          </div>
         </div>
       ),
     },
     {
       title: 'Stats',
-      width: 116,
+      width: 108,
       render: (_, row) => (
         <div style={{ lineHeight: 1.3 }}>
           <Typography.Text style={{ fontSize: 12, display: 'block' }}>Plants: {row.plant_count}</Typography.Text>
@@ -127,9 +157,30 @@ export function SpeciesPage() {
 
   const desktopColumns: TableProps<SpeciesTreeNode>['columns'] = [
     {
+      title: '',
+      width: 56,
+      render: (_, row) => row.main_media_id ? (
+        <Image
+          src={mediaFileUrl(row.main_media_id)}
+          width={40}
+          height={40}
+          style={{ objectFit: 'cover', borderRadius: 4 }}
+          preview={false}
+          fallback='data:image/gif;base64,R0lGODlhAQABAAAAACw='
+        />
+      ) : null,
+    },
+    {
       title: 'Name',
       render: (_, row) => (
-        <Button type='link' style={{ padding: 0 }} onClick={() => navigate(`/species/${row.id}`)}>
+        <Button
+          type='link'
+          style={{ padding: 0 }}
+          onClick={(event) => {
+            event.stopPropagation()
+            navigate(`/species/${row.id}`)
+          }}
+        >
           {row.name}
         </Button>
       ),
@@ -159,15 +210,18 @@ export function SpeciesPage() {
       </Space>
 
       <Table
+        key={tableRenderKey}
         rowKey='id'
         dataSource={items}
         size={isMobile ? 'small' : 'middle'}
         scroll={isMobile ? undefined : { x: 860 }}
         tableLayout={isMobile ? 'fixed' : undefined}
-        onRow={(row) => ({
-          onClick: () => navigate(`/species/${row.id}`),
-          style: { cursor: 'pointer' },
-        })}
+        onRow={isMobile
+          ? undefined
+          : (row) => ({
+              onClick: () => navigate(`/species/${row.id}`),
+              style: { cursor: 'pointer' },
+            })}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
@@ -177,9 +231,11 @@ export function SpeciesPage() {
           simple: isMobile,
         }}
         expandable={{
-          defaultExpandAllRows: false,
+          defaultExpandAllRows: true,
           rowExpandable: (row) => (row.children?.length ?? 0) > 0,
           columnWidth: isMobile ? 28 : undefined,
+          indentSize: isMobile ? 12 : 24,
+          expandRowByClick: isMobile,
         }}
         columns={isMobile ? mobileColumns : desktopColumns}
       />
@@ -192,6 +248,7 @@ export function SpeciesPage() {
           form.resetFields()
         }}
         onOk={() => void onSubmit()}
+        width={isMobile ? '100%' : 640}
       >
         <Form form={form} layout='vertical'>
           <Form.Item label='Name' name='name' rules={[{ required: true }]}>
@@ -216,8 +273,34 @@ export function SpeciesPage() {
           <Form.Item label='Common Name' name='common_name'>
             <Input />
           </Form.Item>
+          <Form.Item label='Parent Species' name='parent_species_id'>
+            <Select
+              allowClear
+              showSearch
+              virtual={false}
+              optionFilterProp='label'
+              getPopupContainer={(triggerNode) => triggerNode.parentElement ?? document.body}
+              options={speciesOptions.map((item) => ({
+                value: item.id,
+                label: item.common_name?.trim() || item.name,
+              }))}
+            />
+          </Form.Item>
           <Form.Item label='Notes' name='notes'>
             <Input.TextArea rows={4} />
+          </Form.Item>
+          <Form.Item label='Main Photo' name='main_media_id'>
+            <Select
+              allowClear
+              showSearch
+              virtual={false}
+              optionFilterProp='label'
+              getPopupContainer={(triggerNode) => triggerNode.parentElement ?? document.body}
+              options={mediaOptions.map((item) => ({
+                value: item.id,
+                label: item.title || item.filename,
+              }))}
+            />
           </Form.Item>
         </Form>
       </Modal>

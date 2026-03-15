@@ -21,10 +21,17 @@ def init_species_table() -> None:
                 common_name       TEXT,
                 notes             TEXT,
                 parent_species_id INTEGER REFERENCES species(id) ON DELETE SET NULL,
+                main_media_id     INTEGER REFERENCES media(id) ON DELETE SET NULL,
                 created_at        TEXT NOT NULL
             )
             """
         )
+        # Migrate: add main_media_id column if it doesn't exist yet
+        existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(species)").fetchall()}
+        if "main_media_id" not in existing_cols:
+            conn.execute(
+                "ALTER TABLE species ADD COLUMN main_media_id INTEGER REFERENCES media(id) ON DELETE SET NULL"
+            )
         conn.commit()
 
 
@@ -33,6 +40,7 @@ def insert_species(
     common_name: Optional[str] = None,
     notes: Optional[str] = None,
     parent_species_id: Optional[int] = None,
+    main_media_id: Optional[int] = None,
 ) -> int:
     """Insert a new species (or subspecies) record.
 
@@ -41,6 +49,7 @@ def insert_species(
         common_name: Optional human-readable name.
         notes: Optional markdown notes text.
         parent_species_id: ID of the parent species if this is a subspecies.
+        main_media_id: Optional media id used as the species thumbnail photo.
 
     Returns:
         The row id of the newly inserted species.
@@ -48,10 +57,10 @@ def insert_species(
     with get_db_connection() as conn:
         cur = conn.execute(
             """
-            INSERT INTO species (name, common_name, notes, parent_species_id, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO species (name, common_name, notes, parent_species_id, main_media_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (name, common_name, notes, parent_species_id, datetime.now(timezone.utc).isoformat()),
+            (name, common_name, notes, parent_species_id, main_media_id, datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
         return cur.lastrowid  # type: ignore[return-value]
@@ -120,6 +129,7 @@ def list_species(limit: int, offset: int) -> list[dict]:
                 s.id,
                 s.name,
                 s.common_name,
+                s.main_media_id,
                 (
                     SELECT COUNT(*)
                     FROM plants p
@@ -184,6 +194,7 @@ def update_species(
     common_name: str | None,
     notes: str | None,
     parent_species_id: int | None | object,
+    main_media_id: int | None | object,
     unset_sentinel: object,
 ) -> bool:
     """Update mutable species fields by id."""
@@ -197,11 +208,17 @@ def update_species(
         else parent_species_id
     )
 
+    resolved_main_media_id = (
+        current.get("main_media_id")
+        if main_media_id is unset_sentinel
+        else main_media_id
+    )
+
     with get_db_connection() as conn:
         conn.execute(
             """
             UPDATE species
-            SET name = ?, common_name = ?, notes = ?, parent_species_id = ?
+            SET name = ?, common_name = ?, notes = ?, parent_species_id = ?, main_media_id = ?
             WHERE id = ?
             """,
             (
@@ -209,6 +226,7 @@ def update_species(
                 common_name if common_name is not None else current["common_name"],
                 notes if notes is not None else current["notes"],
                 resolved_parent_species_id,
+                resolved_main_media_id,
                 species_id,
             ),
         )

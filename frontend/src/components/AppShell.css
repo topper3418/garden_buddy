@@ -1,5 +1,6 @@
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .app-shell__sider {
@@ -26,12 +27,17 @@
 
 .app-shell__content {
   margin: 16px;
+  min-width: 0;
 }
 
 .app-shell__content-card {
   background: #fff;
   min-height: calc(100vh - 32px);
+  min-height: calc(100dvh - 32px);
+  width: 100%;
+  box-sizing: border-box;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   border-radius: 12px;
 }
@@ -56,14 +62,18 @@
   .app-shell__header {
     padding: 0 12px;
     min-height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
   }
 
   .app-shell__content {
-    margin: 10px;
+    margin: 8px;
   }
 
   .app-shell__content-card {
-    min-height: calc(100vh - 96px);
+    min-height: calc(100dvh - 80px);
+    overflow: visible;
     padding: 12px;
     border-radius: 10px;
   }

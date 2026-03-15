@@ -92,31 +92,119 @@ detect_static_dir_from_nginx() {
   printf '%s\n' "${default_static_dir}"
 }
 
-detect_route_from_nginx() {
-  local default_route='/'
-  if [[ ! -f "${NGINX_AVAILABLE}" ]]; then
-    printf '%s\n' "${default_route}"
-    return
+load_env_value_from_file() {
+  local key="$1"
+  local file_path="$2"
+
+  [[ -f "${file_path}" ]] || return 0
+
+  awk -v key="${key}" '
+    /^[[:space:]]*#/ { next }
+    {
+      line = $0
+      sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+      if (line ~ "^[[:space:]]*" key "[[:space:]]*=") {
+        sub("^[[:space:]]*" key "[[:space:]]*=[[:space:]]*", "", line)
+        sub(/[[:space:]]+$/, "", line)
+        if ((line ~ /^".*"$/) || (line ~ /^\047.*\047$/)) {
+          line = substr(line, 2, length(line) - 2)
+        }
+        print line
+        exit
+      }
+    }
+  ' "${file_path}"
+}
+
+upsert_env_value() {
+  local file_path="$1"
+  local key="$2"
+  local value="$3"
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk -v key="${key}" -v value="${value}" '
+    BEGIN { updated = 0 }
+    {
+      line = $0
+      if (!updated && line ~ "^[[:space:]]*(export[[:space:]]+)?" key "[[:space:]]*=") {
+        print key "=" value
+        updated = 1
+      } else {
+        print $0
+      }
+    }
+    END {
+      if (!updated) {
+        print key "=" value
+      }
+    }
+  ' "${file_path}" > "${tmp_file}"
+
+  mv "${tmp_file}" "${file_path}"
+}
+
+is_missing_or_placeholder_ai_value() {
+  local raw="$1"
+  local normalized
+  normalized="$(printf '%s' "${raw}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+
+  if [[ -z "${normalized}" ]]; then
+    return 0
+  fi
+  if [[ "${normalized}" == your_openai_* ]]; then
+    return 0
+  fi
+  if [[ "${normalized}" == "change-me" || "${normalized}" == "changeme" || "${normalized}" == "replace-me" ]]; then
+    return 0
+  fi
+  if [[ "${normalized}" == *"example.invalid"* ]]; then
+    return 0
   fi
 
-  local candidate
-  local detected=''
-  while read -r candidate; do
-    if [[ -z "${candidate}" ]]; then
-      continue
-    fi
-    if [[ "${candidate}" == */api/ ]]; then
-      continue
-    fi
-    detected="${candidate}"
-  done < <(awk '$1 == "location" { gsub(/\{/, "", $2); print $2 }' "${NGINX_AVAILABLE}")
+  return 1
+}
 
-  if [[ -z "${detected}" ]]; then
-    printf '%s\n' "${default_route}"
-    return
+sync_ai_env_from_repo_dotenv() {
+  local source_env_file="${APP_DIR}/.env"
+  local -a ai_keys=(GB_OPENAI_API_KEY GB_OPENAI_API_ENDPOINT GB_OPENAI_API_MODEL)
+
+  [[ -f "${source_env_file}" ]] || return 0
+
+  for key in "${ai_keys[@]}"; do
+    local source_value
+    local target_value
+
+    source_value="$(load_env_value_from_file "${key}" "${source_env_file}")"
+    if is_missing_or_placeholder_ai_value "${source_value}"; then
+      continue
+    fi
+
+    target_value="$(load_env_value_from_file "${key}" "${ENV_FILE}")"
+    if is_missing_or_placeholder_ai_value "${target_value}"; then
+      upsert_env_value "${ENV_FILE}" "${key}" "${source_value}"
+    fi
+  done
+}
+
+ensure_ai_env_ready() {
+  local -a ai_keys=(GB_OPENAI_API_KEY GB_OPENAI_API_ENDPOINT GB_OPENAI_API_MODEL)
+  local -a missing_keys=()
+
+  for key in "${ai_keys[@]}"; do
+    local value
+    value="$(load_env_value_from_file "${key}" "${ENV_FILE}")"
+    if is_missing_or_placeholder_ai_value "${value}"; then
+      missing_keys+=("${key}")
+    fi
+  done
+
+  if [[ "${#missing_keys[@]}" -gt 0 ]]; then
+    echo "AI configuration is incomplete in ${ENV_FILE}."
+    echo "Missing or placeholder values: ${missing_keys[*]}"
+    echo "Populate ${ENV_FILE} directly or set valid values in ${APP_DIR}/.env and rerun update."
+    exit 1
   fi
-
-  printf '%s\n' "${detected}"
 }
 
 wait_for_http() {
@@ -151,8 +239,10 @@ APP_DIR="${APP_DIR:-${REPO_DIR}}"
 SERVICE_NAME="${SERVICE_NAME:-garden-buddy}"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 NGINX_AVAILABLE="/etc/nginx/sites-available/${SERVICE_NAME}.conf"
+ENV_DIR="/etc/garden-buddy"
+ENV_FILE="${ENV_DIR}/garden-buddy.env"
 SKIP_GIT_PULL="${SKIP_GIT_PULL:-false}"
-APP_ROUTE_INPUT="${APP_ROUTE:-}"
+APP_ROUTE_INPUT="${APP_ROUTE:-/}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-25}"
 HEALTH_DELAY_SECONDS="${HEALTH_DELAY_SECONDS:-1}"
 APP_PORT="${APP_PORT:-$(detect_port_from_service)}"
@@ -184,10 +274,12 @@ if [[ ! -f "${NGINX_AVAILABLE}" ]]; then
   exit 1
 fi
 
-if [[ -z "${APP_ROUTE_INPUT}" ]]; then
-  APP_ROUTE_INPUT="$(detect_route_from_nginx)"
-fi
 APP_ROUTE="$(normalize_route "${APP_ROUTE_INPUT}")"
+if [[ "${APP_ROUTE}" != "/" ]]; then
+  echo "Only root route '/' is supported by update.sh."
+  echo "Unset APP_ROUTE or set APP_ROUTE='/' and retry."
+  exit 1
+fi
 set_route_dependent_settings
 
 echo "[1/7] Updating repository..."
@@ -236,6 +328,13 @@ rm -rf "${STATIC_DIR:?}"/*
 cp -a "${APP_DIR}/frontend/dist/." "${STATIC_DIR}/"
 chown -R root:root "${STATIC_DIR}"
 chmod -R a+rX "${STATIC_DIR}"
+
+mkdir -p "${ENV_DIR}"
+if [[ ! -f "${ENV_FILE}" ]]; then
+  cp "${SCRIPT_DIR}/garden-buddy.env.template" "${ENV_FILE}"
+fi
+sync_ai_env_from_repo_dotenv
+ensure_ai_env_ready
 
 echo "[6/7] Rendering nginx config and restarting services..."
 sed \

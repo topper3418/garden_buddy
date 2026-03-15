@@ -1,8 +1,9 @@
-import { Button, Form, Input, Modal, Select, Space, Table, Typography, message } from 'antd'
+import { Button, Form, Image, Input, Modal, Select, Space, Table, Typography, message } from 'antd'
+import type { TableProps } from 'antd'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { listMedia } from '../api/media'
+import { listMedia, mediaFileUrl } from '../api/media'
 import { createTag, listTags } from '../api/tags'
 import { useIsMobile } from '../hooks/useIsMobile'
 import type { MediaListItem, TagCreate, TagListItem } from '../types/models'
@@ -34,6 +35,66 @@ export function TagsPage() {
     await refresh()
   }
 
+  const tableColumns: TableProps<TagListItem>['columns'] = isMobile
+    ? [
+        {
+          title: 'Tag',
+          render: (_, row) => {
+            return (
+              <div style={{ lineHeight: 1.3, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                {row.main_media_id && (
+                  <Image
+                    src={mediaFileUrl(row.main_media_id)}
+                    width={36}
+                    height={36}
+                    style={{ objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                    preview={false}
+                    fallback='data:image/gif;base64,R0lGODlhAQABAAAAACw='
+                  />
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <Button
+                    type='link'
+                    style={{ padding: 0, textAlign: 'left', height: 'auto', whiteSpace: 'normal' }}
+                    onClick={() => navigate(`/tags/${row.id}`)}
+                  >
+                    {row.name}
+                  </Button>
+                </div>
+              </div>
+            )
+          },
+        },
+      ]
+    : [
+        {
+          title: '',
+          width: 56,
+          render: (_, row) => row.main_media_id ? (
+            <Image
+              src={mediaFileUrl(row.main_media_id)}
+              width={40}
+              height={40}
+              style={{ objectFit: 'cover', borderRadius: 4 }}
+              preview={false}
+              fallback='data:image/gif;base64,R0lGODlhAQABAAAAACw='
+            />
+          ) : null,
+        },
+        {
+          title: 'Name',
+          render: (_, row) => (
+            <Button
+              type='link'
+              style={{ padding: 0 }}
+              onClick={() => navigate(`/tags/${row.id}`)}
+            >
+              {row.name}
+            </Button>
+          ),
+        },
+      ]
+
   return (
     <>
       <Space
@@ -49,7 +110,8 @@ export function TagsPage() {
         rowKey='id'
         dataSource={items}
         size={isMobile ? 'small' : 'middle'}
-        scroll={{ x: 640 }}
+        scroll={isMobile ? undefined : { x: 640 }}
+        tableLayout={isMobile ? 'fixed' : undefined}
         onRow={(row) => ({
           onClick: () => navigate(`/tags/${row.id}`),
           style: { cursor: 'pointer' },
@@ -59,29 +121,10 @@ export function TagsPage() {
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50],
           showTotal: (total) => `${total} tags`,
+          size: isMobile ? 'small' : undefined,
+          simple: isMobile,
         }}
-        columns={[
-          {
-            title: 'Name',
-            render: (_, row) => (
-              <Button
-                type='link'
-                style={{ padding: 0 }}
-                onClick={() => navigate(`/tags/${row.id}`)}
-              >
-                {row.name}
-              </Button>
-            ),
-          },
-          {
-            title: 'Main Photo',
-            render: (_, row) => {
-              if (!row.main_media_id) return '-'
-              const media = mediaOptions.find((item) => item.id === row.main_media_id)
-              return media?.title || media?.filename || `Media #${row.main_media_id}`
-            },
-          },
-        ]}
+        columns={tableColumns}
       />
 
       <Modal
@@ -92,6 +135,7 @@ export function TagsPage() {
           form.resetFields()
         }}
         onOk={() => void onSubmit()}
+        width={isMobile ? '100%' : 560}
       >
         <Form form={form} layout='vertical'>
           <Form.Item label='Name' name='name' rules={[{ required: true }]}>

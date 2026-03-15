@@ -66,7 +66,11 @@ export function DashboardPage() {
               dataSource={recentPlants}
               renderItem={(item) => (
                 <List.Item>
-                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Space
+                    style={{ width: '100%', justifyContent: 'space-between' }}
+                    direction={isMobile ? 'vertical' : 'horizontal'}
+                    size={isMobile ? 2 : 8}
+                  >
                     <Typography.Link onClick={() => navigate(`/plants/${item.id}`)}>{item.name}</Typography.Link>
                     <Typography.Text type='secondary'>{new Date(item.created_at).toLocaleDateString()}</Typography.Text>
                   </Space>
@@ -77,7 +81,14 @@ export function DashboardPage() {
         </Col>
         <Col xs={24} lg={12}>
           <Card title='Most Recent Photos' styles={{ body: { maxHeight: isMobile ? 380 : 420, overflowY: 'auto' } }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignContent: 'flex-start' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(230px, 1fr))',
+                gap: 12,
+                alignContent: 'flex-start',
+              }}
+            >
               {recentMedia.map((item) => (
                 <MediaCard
                   key={item.id}

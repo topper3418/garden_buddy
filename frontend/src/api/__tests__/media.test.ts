@@ -52,13 +52,14 @@ describe('media api module', () => {
     const fetchMock = mockFetchJson({ id: 1, filename: 'a.jpg', mime_type: 'image/jpeg', size: 1, uploaded_at: 'x' })
     const file = new File(['abc'], 'a.jpg', { type: 'image/jpeg' })
 
-    await uploadMedia(file, 'Title', 12)
+    await uploadMedia(file, 'Title', 12, undefined, 5)
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/media')
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'POST' })
     const form = fetchMock.mock.calls[0]?.[1]?.body as FormData
     expect(form.get('title')).toBe('Title')
     expect(form.get('plant_id')).toBe('12')
+    expect(form.get('species_id')).toBe('5')
   })
 
   it('mediaFileUrl returns file endpoint url', () => {

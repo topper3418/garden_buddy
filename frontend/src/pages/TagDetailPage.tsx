@@ -1,6 +1,6 @@
 import { ArrowLeftOutlined, DeleteOutlined, EditOutlined, UploadOutlined } from '@ant-design/icons'
 import { Button, Card, Col, Descriptions, Form, Input, Modal, Popconfirm, Row, Select, Space, Table, Typography, Upload, message } from 'antd'
-import type { UploadProps } from 'antd'
+import type { TableProps, UploadProps } from 'antd'
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -88,9 +88,51 @@ export function TagDetailPage() {
     ? mediaOptions.find((item) => item.id === tag.main_media_id)
     : undefined
 
+  const plantsColumns: TableProps<Plant>['columns'] = isMobile
+    ? [
+        {
+          title: 'Plant',
+          render: (_, row) => (
+            <div style={{ lineHeight: 1.25, minWidth: 0 }}>
+              <Button
+                type='link'
+                style={{ padding: 0, textAlign: 'left', height: 'auto', whiteSpace: 'normal' }}
+                onClick={() => navigate(`/plants/${row.id}`)}
+              >
+                {row.name}
+              </Button>
+              <Typography.Text type='secondary' style={{ fontSize: 12, display: 'block' }}>
+                {row.species?.common_name || row.species?.name || '-'}
+              </Typography.Text>
+            </div>
+          ),
+        },
+        {
+          title: 'Tags',
+          width: 130,
+          render: (_, row) => (
+            <Typography.Text style={{ fontSize: 12 }}>
+              {row.tags.map((item) => item.name).join(', ') || '-'}
+            </Typography.Text>
+          ),
+        },
+      ]
+    : [
+        {
+          title: 'Name',
+          render: (_, row) => (
+            <Button type='link' style={{ padding: 0 }} onClick={() => navigate(`/plants/${row.id}`)}>
+              {row.name}
+            </Button>
+          ),
+        },
+        { title: 'Species', render: (_, row) => row.species?.common_name || row.species?.name || '-' },
+        { title: 'Tags', render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-' },
+      ]
+
   return (
     <Space direction='vertical' size={16} style={{ width: '100%' }}>
-      <Space wrap>
+      <Space wrap direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tags')}>
           Back to Tags
         </Button>
@@ -133,7 +175,7 @@ export function TagDetailPage() {
           <Descriptions.Item label='Notes'>
             {tag.notes?.trim()
               ? (
-                <div style={{ maxHeight: 240, overflowY: 'auto', paddingRight: 8 }}>
+                <div style={{ maxHeight: isMobile ? 'none' : 240, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
                   <ReactMarkdown>{tag.notes}</ReactMarkdown>
                 </div>
                 )
@@ -148,23 +190,13 @@ export function TagDetailPage() {
           rowKey='id'
           size={isMobile ? 'small' : 'middle'}
           dataSource={plants}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
+          tableLayout={isMobile ? 'fixed' : undefined}
+          pagination={{ pageSize: 10, showSizeChanger: false, size: isMobile ? 'small' : undefined, simple: isMobile }}
           onRow={(row) => ({
             onClick: () => navigate(`/plants/${row.id}`),
             style: { cursor: 'pointer' },
           })}
-          columns={[
-            {
-              title: 'Name',
-              render: (_, row) => (
-                <Button type='link' style={{ padding: 0 }} onClick={() => navigate(`/plants/${row.id}`)}>
-                  {row.name}
-                </Button>
-              ),
-            },
-            { title: 'Species', render: (_, row) => row.species?.common_name || row.species?.name || '-' },
-            { title: 'Tags', render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-' },
-          ]}
+          columns={plantsColumns}
         />
       </Card>
 
@@ -186,11 +218,11 @@ export function TagDetailPage() {
         {mediaItems.length === 0 ? (
           <Typography.Text type='secondary'>No images attached to this tag yet.</Typography.Text>
         ) : (
-          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: 'auto', paddingRight: isMobile ? 0 : 8 }}>
+          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
             <Row gutter={[16, 16]}>
               {mediaItems.map((item) => (
                 <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
-                  <MediaCard media={item} mode='expand' />
+                  <MediaCard media={item} mode='expand' onRenameMedia={() => void loadData()} />
                 </Col>
               ))}
             </Row>
@@ -212,6 +244,7 @@ export function TagDetailPage() {
           setEditModalOpen(false)
           await loadData()
         }}
+        width={isMobile ? '100%' : 640}
       >
         <Form form={form} layout='vertical'>
           <Form.Item label='Name' name='name' rules={[{ required: true }]}> 
@@ -240,6 +273,7 @@ export function TagDetailPage() {
           setAttachTitle('')
         }}
         footer={null}
+        width={isMobile ? '100%' : 560}
       >
         <Space direction='vertical' style={{ width: '100%' }} size={12}>
           <Input

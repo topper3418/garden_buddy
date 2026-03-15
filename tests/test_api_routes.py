@@ -246,12 +246,18 @@ def test_media_upload_query_file_and_delete_by_id(client: TestClient) -> None:
     upload_resp = client.post(
         "/media",
         files={"file": ("leaf.jpg", b"\xff\xd8\xff\xe0testjpeg", "image/jpeg")},
-        data={"title": "Leaf Closeup", "plant_id": str(plant["id"]), "tag_id": str(tag_id)},
+        data={
+            "title": "Leaf Closeup",
+            "plant_id": str(plant["id"]),
+            "tag_id": str(tag_id),
+            "species_id": str(species["id"]),
+        },
     )
     assert upload_resp.status_code == 201
     media = upload_resp.json()
     assert media["plant_id"] == plant["id"]
     assert media["tag_id"] == tag_id
+    assert media["species_id"] == species["id"]
 
     media_file = settings.media_path / media["filename"]
     assert media_file.exists()
@@ -296,6 +302,11 @@ def test_media_upload_query_file_and_delete_by_id(client: TestClient) -> None:
     assert patch_resp.json()["title"] == "Updated Leaf"
     assert patch_resp.json()["plant_id"] is None
     assert patch_resp.json()["tag_id"] is None
+    assert patch_resp.json()["species_id"] == species["id"]
+
+    query_by_species_after_unlink_resp = client.get("/media/query", params={"species_ids": species["id"]})
+    assert query_by_species_after_unlink_resp.status_code == 200
+    assert len(query_by_species_after_unlink_resp.json()) == 1
 
     delete_resp = client.delete(f"/media/{media['id']}")
     assert delete_resp.status_code == 204

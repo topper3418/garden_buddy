@@ -18,6 +18,7 @@ from src.services.media_service import (
     update_media,
 )
 from src.services.plant_service import get_plant_by_id as get_plant_record_by_id
+from src.services.species_service import get_species_by_id as get_species_record_by_id
 from src.services.tag_service import get_tag_by_id as get_tag_record_by_id
 from src.settings import settings
 
@@ -84,11 +85,14 @@ async def upload_media_endpoint(
     title: str | None = Form(default=None),
     plant_id: int | None = Form(default=None),
     tag_id: int | None = Form(default=None),
+    species_id: int | None = Form(default=None),
 ) -> Media:
     if plant_id is not None and not get_plant_record_by_id(plant_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
     if tag_id is not None and not get_tag_record_by_id(tag_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
+    if species_id is not None and not get_species_record_by_id(species_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Species not found")
 
     unique_filename = await save_image(file)
     file_path = Path(settings.media_path) / unique_filename
@@ -100,6 +104,7 @@ async def upload_media_endpoint(
         size=file_path.stat().st_size,
         plant_id=plant_id,
         tag_id=tag_id,
+        species_id=species_id,
     )
     return create_media(payload)
 
@@ -117,11 +122,15 @@ def update_media_endpoint(media_id: int, payload: MediaUpdate) -> Media:
         kwargs["plant_id"] = payload.plant_id
     if "tag_id" in payload.model_fields_set:
         kwargs["tag_id"] = payload.tag_id
+    if "species_id" in payload.model_fields_set:
+        kwargs["species_id"] = payload.species_id
 
     if "plant_id" in kwargs and kwargs["plant_id"] is not None and not get_plant_record_by_id(kwargs["plant_id"]):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plant not found")
     if "tag_id" in kwargs and kwargs["tag_id"] is not None and not get_tag_record_by_id(kwargs["tag_id"]):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
+    if "species_id" in kwargs and kwargs["species_id"] is not None and not get_species_record_by_id(kwargs["species_id"]):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Species not found")
 
     updated = update_media(media_id, **kwargs)
     if not updated:

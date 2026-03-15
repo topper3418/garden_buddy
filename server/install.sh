@@ -197,42 +197,150 @@ resolve_route_conflict() {
   done
 
   if [[ ! -t 0 ]]; then
-    echo "Install cancelled because APP_ROUTE conflicts with an existing nginx route."
-    echo "Set APP_ROUTE to a new value or run: sudo bash server/uninstall.sh"
+    echo "Install cancelled because '/' conflicts with an existing nginx route."
+    echo "Run: sudo bash server/uninstall.sh"
     exit 1
   fi
 
   while true; do
     echo
     echo "Choose an action:"
-    echo "  1) Select a new route"
-    echo "  2) Run uninstall script now (server/uninstall.sh)"
-    echo "  3) Cancel install"
-    read -r -p "Selection (1/2/3): " selection
+    echo "  1) Run uninstall script now (server/uninstall.sh)"
+    echo "  2) Cancel install"
+    read -r -p "Selection (1/2): " selection
 
     case "${selection}" in
       1)
-        read -r -p "New route prefix (blank for '/'): " APP_ROUTE_INPUT
-        APP_ROUTE="$(normalize_route "${APP_ROUTE_INPUT}")"
-        set_route_dependent_settings
-        return
-        ;;
-      2)
         read -r -p "Run uninstall now? [y/N]: " confirm_uninstall
         if [[ "${confirm_uninstall}" =~ ^[Yy]$ ]]; then
           bash "${SCRIPT_DIR}/uninstall.sh"
           return
         fi
         ;;
-      3)
+      2)
         echo "Install cancelled by user."
         exit 1
         ;;
       *)
-        echo "Invalid selection. Please enter 1, 2, or 3."
+        echo "Invalid selection. Please enter 1 or 2."
         ;;
     esac
   done
+}
+
+load_env_value_from_file() {
+  local key="$1"
+  local file_path="$2"
+
+  [[ -f "${file_path}" ]] || return 0
+
+  awk -v key="${key}" '
+    /^[[:space:]]*#/ { next }
+    {
+      line = $0
+      sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+      if (line ~ "^[[:space:]]*" key "[[:space:]]*=") {
+        sub("^[[:space:]]*" key "[[:space:]]*=[[:space:]]*", "", line)
+        sub(/[[:space:]]+$/, "", line)
+        if ((line ~ /^".*"$/) || (line ~ /^\047.*\047$/)) {
+          line = substr(line, 2, length(line) - 2)
+        }
+        print line
+        exit
+      }
+    }
+  ' "${file_path}"
+}
+
+upsert_env_value() {
+  local file_path="$1"
+  local key="$2"
+  local value="$3"
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk -v key="${key}" -v value="${value}" '
+    BEGIN { updated = 0 }
+    {
+      line = $0
+      if (!updated && line ~ "^[[:space:]]*(export[[:space:]]+)?" key "[[:space:]]*=") {
+        print key "=" value
+        updated = 1
+      } else {
+        print $0
+      }
+    }
+    END {
+      if (!updated) {
+        print key "=" value
+      }
+    }
+  ' "${file_path}" > "${tmp_file}"
+
+  mv "${tmp_file}" "${file_path}"
+}
+
+is_missing_or_placeholder_ai_value() {
+  local raw="$1"
+  local normalized
+  normalized="$(printf '%s' "${raw}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+
+  if [[ -z "${normalized}" ]]; then
+    return 0
+  fi
+  if [[ "${normalized}" == your_openai_* ]]; then
+    return 0
+  fi
+  if [[ "${normalized}" == "change-me" || "${normalized}" == "changeme" || "${normalized}" == "replace-me" ]]; then
+    return 0
+  fi
+  if [[ "${normalized}" == *"example.invalid"* ]]; then
+    return 0
+  fi
+
+  return 1
+}
+
+sync_ai_env_from_repo_dotenv() {
+  local source_env_file="${APP_DIR}/.env"
+  local -a ai_keys=(GB_OPENAI_API_KEY GB_OPENAI_API_ENDPOINT GB_OPENAI_API_MODEL)
+
+  [[ -f "${source_env_file}" ]] || return 0
+
+  for key in "${ai_keys[@]}"; do
+    local source_value
+    local target_value
+
+    source_value="$(load_env_value_from_file "${key}" "${source_env_file}")"
+    if is_missing_or_placeholder_ai_value "${source_value}"; then
+      continue
+    fi
+
+    target_value="$(load_env_value_from_file "${key}" "${ENV_FILE}")"
+    if is_missing_or_placeholder_ai_value "${target_value}"; then
+      upsert_env_value "${ENV_FILE}" "${key}" "${source_value}"
+    fi
+  done
+}
+
+ensure_ai_env_ready() {
+  local -a ai_keys=(GB_OPENAI_API_KEY GB_OPENAI_API_ENDPOINT GB_OPENAI_API_MODEL)
+  local -a missing_keys=()
+
+  for key in "${ai_keys[@]}"; do
+    local value
+    value="$(load_env_value_from_file "${key}" "${ENV_FILE}")"
+    if is_missing_or_placeholder_ai_value "${value}"; then
+      missing_keys+=("${key}")
+    fi
+  done
+
+  if [[ "${#missing_keys[@]}" -gt 0 ]]; then
+    echo "AI configuration is incomplete in ${ENV_FILE}."
+    echo "Missing or placeholder values: ${missing_keys[*]}"
+    echo "Populate ${ENV_FILE} directly or set valid values in ${APP_DIR}/.env and rerun install."
+    exit 1
+  fi
 }
 
 APP_DIR="${APP_DIR:-${REPO_DIR}}"
@@ -241,7 +349,7 @@ APP_GROUP_INPUT="${APP_GROUP:-}"
 SERVICE_NAME="${SERVICE_NAME:-garden-buddy}"
 STATIC_DIR="${STATIC_DIR:-/var/www/${SERVICE_NAME}}"
 SERVER_NAME='_'
-APP_ROUTE_INPUT="${APP_ROUTE:-}"
+APP_ROUTE_INPUT="${APP_ROUTE:-/}"
 APP_PORT="${APP_PORT:-8001}"
 
 if ! validate_port "${APP_PORT}"; then
@@ -249,11 +357,12 @@ if ! validate_port "${APP_PORT}"; then
   exit 1
 fi
 
-if [[ -z "${APP_ROUTE_INPUT}" && -t 0 ]]; then
-  read -r -p "Route prefix for app (blank for '/'; example '/garden/'): " APP_ROUTE_INPUT
-fi
-
 APP_ROUTE="$(normalize_route "${APP_ROUTE_INPUT}")"
+if [[ "${APP_ROUTE}" != "/" ]]; then
+  echo "Only root route '/' is supported by install.sh."
+  echo "Unset APP_ROUTE or set APP_ROUTE='/' and retry."
+  exit 1
+fi
 set_route_dependent_settings
 
 ENV_DIR="/etc/garden-buddy"
@@ -343,6 +452,8 @@ mkdir -p "${ENV_DIR}"
 if [[ ! -f "${ENV_FILE}" ]]; then
   cp "${SCRIPT_DIR}/garden-buddy.env.template" "${ENV_FILE}"
 fi
+sync_ai_env_from_repo_dotenv
+ensure_ai_env_ready
 chown root:"${APP_GROUP}" "${ENV_FILE}"
 chmod 640 "${ENV_FILE}"
 

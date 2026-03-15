@@ -8,6 +8,11 @@ from src.db.connection import get_db_connection
 _UNSET = object()
 
 
+def _has_media_column(conn: Any, column_name: str) -> bool:
+    columns = conn.execute("PRAGMA table_info(media)").fetchall()
+    return any(row[1] == column_name for row in columns)
+
+
 def init_media_table() -> None:
     """Create the media table if it doesn't exist."""
     with get_db_connection() as conn:
@@ -21,10 +26,13 @@ def init_media_table() -> None:
                 size INTEGER,
                 plant_id INTEGER REFERENCES plants(id) ON DELETE SET NULL,
                 tag_id INTEGER REFERENCES tags(id) ON DELETE SET NULL,
+                species_id INTEGER REFERENCES species(id) ON DELETE SET NULL,
                 uploaded_at TEXT NOT NULL
             )
             """
         )
+        if not _has_media_column(conn, "species_id"):
+            conn.execute("ALTER TABLE media ADD COLUMN species_id INTEGER")
         conn.commit()
 
 
@@ -35,13 +43,14 @@ def insert_media(
     title: Optional[str] = None,
     plant_id: int | None = None,
     tag_id: int | None = None,
+    species_id: int | None = None,
 ) -> int:
     """Insert a new media record and return its row id."""
     with get_db_connection() as conn:
         cur = conn.execute(
             """
-            INSERT INTO media (filename, title, mime_type, size, plant_id, tag_id, uploaded_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO media (filename, title, mime_type, size, plant_id, tag_id, species_id, uploaded_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 filename,
@@ -50,6 +59,7 @@ def insert_media(
                 size,
                 plant_id,
                 tag_id,
+                species_id,
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
@@ -78,7 +88,7 @@ def list_media(limit: int, offset: int) -> list[dict]:
     with get_db_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, filename, title, mime_type, plant_id, tag_id
+            SELECT id, filename, title, mime_type, plant_id, tag_id, species_id
             FROM media
             ORDER BY uploaded_at DESC
             LIMIT ? OFFSET ?
@@ -107,16 +117,19 @@ def query_media(
 
     needs_plant_join = bool(name_contains or species_ids)
     if needs_plant_join:
-        joins.append("INNER JOIN plants p ON p.id = m.plant_id")
-        clauses.append("p.deleted_at IS NULL")
+        joins.append("LEFT JOIN plants p ON p.id = m.plant_id")
 
     if name_contains:
+        clauses.append("p.deleted_at IS NULL")
         clauses.append("p.name LIKE ?")
         params.append(f"%{name_contains}%")
 
     if species_ids:
         placeholders = ", ".join("?" for _ in species_ids)
-        clauses.append(f"p.species_id IN ({placeholders})")
+        clauses.append(
+            f"(m.species_id IN ({placeholders}) OR (p.deleted_at IS NULL AND p.species_id IN ({placeholders})))"
+        )
+        params.extend(species_ids)
         params.extend(species_ids)
 
     if title_contains:
@@ -183,6 +196,7 @@ def update_media(
     size: int | None | object = _UNSET,
     plant_id: int | None | object = _UNSET,
     tag_id: int | None | object = _UNSET,
+    species_id: int | None | object = _UNSET,
 ) -> bool:
     """Update mutable media fields by id."""
     current = get_media_by_id(media_id)
@@ -194,12 +208,13 @@ def update_media(
     next_size = current["size"] if size is _UNSET else size
     next_plant_id = current.get("plant_id") if plant_id is _UNSET else plant_id
     next_tag_id = current.get("tag_id") if tag_id is _UNSET else tag_id
+    next_species_id = current.get("species_id") if species_id is _UNSET else species_id
 
     with get_db_connection() as conn:
         conn.execute(
             """
             UPDATE media
-            SET title = ?, mime_type = ?, size = ?, plant_id = ?, tag_id = ?
+            SET title = ?, mime_type = ?, size = ?, plant_id = ?, tag_id = ?, species_id = ?
             WHERE id = ?
             """,
             (
@@ -208,6 +223,7 @@ def update_media(
                 next_size,
                 next_plant_id,
                 next_tag_id,
+                next_species_id,
                 media_id,
             ),
         )

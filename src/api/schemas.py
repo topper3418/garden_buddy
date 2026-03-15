@@ -8,6 +8,7 @@ class SpeciesUpdate(BaseModel):
     common_name: str | None = None
     notes: str | None = None
     parent_species_id: int | None = None
+    main_media_id: int | None = None
 
 
 class TagUpdate(BaseModel):
@@ -30,6 +31,7 @@ class MediaUpdate(BaseModel):
     size: int | None = Field(default=None, ge=0)
     plant_id: int | None = None
     tag_id: int | None = None
+    species_id: int | None = None
 
 
 class SpeciesDraftRequest(BaseModel):

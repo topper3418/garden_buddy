@@ -63,6 +63,7 @@ def create_species(payload: SpeciesCreate) -> Species:
         common_name=payload.common_name,
         notes=payload.notes,
         parent_species_id=payload.parent_species_id,
+        main_media_id=payload.main_media_id,
     )
     species = get_species_by_id(species_id)
     if not species:
@@ -77,6 +78,7 @@ def update_species(
     common_name: str | None = None,
     notes: str | None = None,
     parent_species_id: int | None | object = _UNSET,
+    main_media_id: int | None | object = _UNSET,
 ) -> Species | None:
     """Update mutable fields and return the updated species."""
     ensure_tables()
@@ -86,6 +88,7 @@ def update_species(
         common_name=common_name,
         notes=notes,
         parent_species_id=parent_species_id,
+        main_media_id=main_media_id,
         unset_sentinel=_UNSET,
     )
     if not updated:

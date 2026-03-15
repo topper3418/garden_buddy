@@ -17,12 +17,14 @@ class SpeciesCreate(BaseModel):
         notes: Optional markdown notes text.
         parent_species_id: If set, this record represents a subspecies of the
             given parent species id.
+        main_media_id: Optional media id used as the species thumbnail photo.
     """
 
     name: str
     common_name: Optional[str] = None
     notes: Optional[str] = None
     parent_species_id: Optional[int] = None
+    main_media_id: int | None = None
 
 
 class Species(SpeciesCreate):
@@ -47,6 +49,7 @@ class SpeciesListItem(BaseModel):
     name: str
     common_name: str | None = None
     plant_count: int = 0
+    main_media_id: int | None = None
 
 
 class SpeciesListResponse(ListResponse[SpeciesListItem]):

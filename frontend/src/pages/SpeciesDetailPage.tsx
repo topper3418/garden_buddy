@@ -1,6 +1,6 @@
 import { ArrowLeftOutlined, DeleteOutlined, EditOutlined, UploadOutlined } from '@ant-design/icons'
 import { Button, Card, Col, Descriptions, Form, Input, Modal, Popconfirm, Row, Select, Space, Table, Typography, Upload, message } from 'antd'
-import type { UploadProps } from 'antd'
+import type { TableProps, UploadProps } from 'antd'
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -57,7 +57,6 @@ export function SpeciesDetailPage() {
   const [isEditModalOpen, setEditModalOpen] = useState(false)
   const [isAttachModalOpen, setAttachModalOpen] = useState(false)
   const [attachTitle, setAttachTitle] = useState('')
-  const [attachPlantId, setAttachPlantId] = useState<number | undefined>(undefined)
   const [isGeneratingDraft, setGeneratingDraft] = useState(false)
   const [question, setQuestion] = useState('')
   const [isAskingQuestion, setAskingQuestion] = useState(false)
@@ -69,18 +68,16 @@ export function SpeciesDetailPage() {
   const attachUploadProps: UploadProps = {
     showUploadList: false,
     customRequest: async (options) => {
-      if (!attachPlantId) {
-        message.error('Choose a plant before uploading')
-        options.onError?.(new Error('No plant selected'))
+      if (!species) {
+        options.onError?.(new Error('No species selected'))
         return
       }
 
       try {
         const file = options.file as File
-        await uploadMedia(file, attachTitle || file.name, attachPlantId)
+        await uploadMedia(file, attachTitle || file.name, undefined, undefined, species.id)
         message.success('Image added to species gallery')
         setAttachTitle('')
-        setAttachPlantId(undefined)
         setAttachModalOpen(false)
         await loadData()
         options.onSuccess?.({}, file)
@@ -144,6 +141,48 @@ export function SpeciesDetailPage() {
   const speciesIdValue = species.id
   const speciesNotesValue = species.notes
 
+  const plantsColumns: TableProps<Plant>['columns'] = isMobile
+    ? [
+        {
+          title: 'Plant',
+          render: (_, row) => (
+            <div style={{ lineHeight: 1.25, minWidth: 0 }}>
+              <Button
+                type='link'
+                style={{ padding: 0, textAlign: 'left', height: 'auto', whiteSpace: 'normal' }}
+                onClick={() => navigate(`/plants/${row.id}`)}
+              >
+                {row.name}
+              </Button>
+              <Typography.Text type='secondary' style={{ fontSize: 12, display: 'block' }}>
+                {row.species?.common_name || row.species?.name || '-'}
+              </Typography.Text>
+            </div>
+          ),
+        },
+        {
+          title: 'Tags',
+          width: 130,
+          render: (_, row) => (
+            <Typography.Text style={{ fontSize: 12 }}>
+              {row.tags.map((item) => item.name).join(', ') || '-'}
+            </Typography.Text>
+          ),
+        },
+      ]
+    : [
+        {
+          title: 'Name',
+          render: (_, row) => (
+            <Button type='link' style={{ padding: 0 }} onClick={() => navigate(`/plants/${row.id}`)}>
+              {row.name}
+            </Button>
+          ),
+        },
+        { title: 'Species', render: (_, row) => row.species?.common_name || row.species?.name || '-' },
+        { title: 'Tags', render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-' },
+      ]
+
   async function onGenerateDraft() {
     const enteredName = String(form.getFieldValue('name') ?? '').trim()
     if (!enteredName) {
@@ -206,7 +245,7 @@ export function SpeciesDetailPage() {
 
   return (
     <Space direction='vertical' size={16} style={{ width: '100%' }}>
-      <Space wrap>
+      <Space wrap direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/species')}>
           Back to Species
         </Button>
@@ -218,6 +257,7 @@ export function SpeciesDetailPage() {
               common_name: species.common_name ?? undefined,
               notes: species.notes ?? undefined,
               parent_species_id: species.parent_species_id ?? undefined,
+              main_media_id: species.main_media_id ?? undefined,
             })
             setEditModalOpen(true)
           }}
@@ -262,7 +302,7 @@ export function SpeciesDetailPage() {
           <Descriptions.Item label='Notes'>
             {species.notes?.trim()
               ? (
-                <div style={{ maxHeight: 240, overflowY: 'auto', paddingRight: 8 }}>
+                <div style={{ maxHeight: isMobile ? 'none' : 240, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
                   <ReactMarkdown>{species.notes}</ReactMarkdown>
                 </div>
                 )
@@ -316,23 +356,13 @@ export function SpeciesDetailPage() {
           rowKey='id'
           size={isMobile ? 'small' : 'middle'}
           dataSource={plants}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
+          tableLayout={isMobile ? 'fixed' : undefined}
+          pagination={{ pageSize: 10, showSizeChanger: false, size: isMobile ? 'small' : undefined, simple: isMobile }}
           onRow={(row) => ({
             onClick: () => navigate(`/plants/${row.id}`),
             style: { cursor: 'pointer' },
           })}
-          columns={[
-            {
-              title: 'Name',
-              render: (_, row) => (
-                <Button type='link' style={{ padding: 0 }} onClick={() => navigate(`/plants/${row.id}`)}>
-                  {row.name}
-                </Button>
-              ),
-            },
-            { title: 'Species', render: (_, row) => row.species?.common_name || row.species?.name || '-' },
-            { title: 'Tags', render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-' },
-          ]}
+          columns={plantsColumns}
         />
       </Card>
 
@@ -342,10 +372,8 @@ export function SpeciesDetailPage() {
           <Button
             type='primary'
             icon={<UploadOutlined />}
-            disabled={plants.length === 0}
             onClick={() => {
               setAttachTitle('')
-              setAttachPlantId(plants[0]?.id)
               setAttachModalOpen(true)
             }}
           >
@@ -353,16 +381,14 @@ export function SpeciesDetailPage() {
           </Button>
         )}
       >
-        {plants.length === 0 ? (
-          <Typography.Text type='secondary'>Add a plant to this species before attaching images.</Typography.Text>
-        ) : mediaItems.length === 0 ? (
+        {mediaItems.length === 0 ? (
           <Typography.Text type='secondary'>No images attached to this species yet.</Typography.Text>
         ) : (
-          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: 'auto', paddingRight: isMobile ? 0 : 8 }}>
+          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
             <Row gutter={[16, 16]}>
               {mediaItems.map((item) => (
                 <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
-                  <MediaCard media={item} mode='expand' />
+                  <MediaCard media={item} mode='expand' onRenameMedia={() => void loadData()} />
                 </Col>
               ))}
             </Row>
@@ -384,6 +410,7 @@ export function SpeciesDetailPage() {
           setEditModalOpen(false)
           await loadData()
         }}
+        width={isMobile ? '100%' : 760}
       >
         <Form form={form} layout='vertical'>
           <Form.Item label='Scientific Name' name='name' rules={[{ required: true }]}> 
@@ -422,6 +449,15 @@ export function SpeciesDetailPage() {
           <Form.Item label='Notes' name='notes'>
             <NotesEditor height={280} />
           </Form.Item>
+          <Form.Item label='Main Photo' name='main_media_id'>
+            <Select
+              allowClear
+              options={mediaItems.map((item) => ({
+                value: item.id,
+                label: item.title || item.filename,
+              }))}
+            />
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -431,17 +467,11 @@ export function SpeciesDetailPage() {
         onCancel={() => {
           setAttachModalOpen(false)
           setAttachTitle('')
-          setAttachPlantId(undefined)
         }}
         footer={null}
+        width={isMobile ? '100%' : 560}
       >
         <Space direction='vertical' style={{ width: '100%' }} size={12}>
-          <Select
-            placeholder='Choose plant'
-            value={attachPlantId}
-            onChange={(value) => setAttachPlantId(value)}
-            options={plants.map((item) => ({ value: item.id, label: item.name }))}
-          />
           <Input
             placeholder='Optional title'
             value={attachTitle}

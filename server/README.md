@@ -13,28 +13,17 @@ Default installer behavior:
 
 Optional overrides:
 
-- `APP_ROUTE=/garden/` to serve from a path prefix
 - `STATIC_DIR=/var/www/garden-buddy` to control where built frontend files are published for nginx
 - `APP_PORT=8010` to choose a different backend bind port
 
-The installer prompts for a route prefix.
-
-- Leave it blank to serve at `/` on port 80.
-- Enter something like `/garden/` to serve under a path prefix.
-- If that route is already present in nginx config, install stops and offers:
-  - choose a new route,
+The installer now deploys at root route `/` only (no route prompt).
+If `/` conflicts with an existing nginx route, install stops and offers:
   - run `server/uninstall.sh`, or
   - cancel.
 - If backend port is already in use, install stops and offers:
   - choose a new backend port,
   - run `server/uninstall.sh`, or
   - cancel.
-
-You can also skip the prompt by passing `APP_ROUTE`:
-
-```bash
-sudo APP_USER=$USER APP_ROUTE=/garden/ bash server/install.sh
-```
 
 At completion, installer/update output prints a preferred URL plus other interface URLs.
 Use the URL on the same subnet as your client device.
@@ -50,6 +39,7 @@ Use the URL on the same subnet as your client device.
 - Renders and installs systemd service from `garden-buddy.service.template`
 - Renders and installs nginx config from `garden-buddy.nginx.conf.template`
 - Creates `/etc/garden-buddy/garden-buddy.env` from template (if missing)
+- Syncs missing AI settings in `/etc/garden-buddy/garden-buddy.env` from repo `.env` when available
 - Enables and starts both `garden-buddy` and `nginx`
 - Does **not** run the seed script automatically (fresh/unseeded start)
 
@@ -82,12 +72,13 @@ What it does:
 Useful overrides:
 
 - `SKIP_GIT_PULL=true` to skip git pull (useful for local testing)
-- `APP_ROUTE=/garden/` to override detected route prefix
 - `APP_USER=ubuntu` if git/dependency commands must run as a specific user
 - `APP_PORT=8010` to override backend health-check target port
 - `STATIC_DIR=/var/www/garden-buddy` for custom static publish target
 - `SERVICE_NAME=garden-buddy` for custom systemd/nginx naming
 - `HEALTH_RETRIES=40` and `HEALTH_DELAY_SECONDS=1` to tune post-restart health wait window
+
+Both install and update now hard-fail if AI settings are still missing or placeholder after syncing from repo `.env` into `/etc/garden-buddy/garden-buddy.env`.
 
 ## Notes
 
@@ -114,6 +105,6 @@ sudo bash server/uninstall.sh
 
 Optional flags:
 
-- `REMOVE_ENV_FILE=false` keeps `/etc/garden-buddy/garden-buddy.env`
+- `REMOVE_ENV_FILE=true` removes `/etc/garden-buddy/garden-buddy.env` (default is to keep it)
 - `REMOVE_BUILD_ARTIFACTS=false` keeps `venv`, `frontend/node_modules`, `frontend/dist`
 - `STATIC_DIR=/var/www/garden-buddy` targets a custom published static directory for cleanup

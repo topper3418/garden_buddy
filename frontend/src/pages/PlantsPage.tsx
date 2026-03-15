@@ -1,11 +1,12 @@
 import { FilterOutlined } from '@ant-design/icons'
-import { Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, TreeSelect, Typography, message } from 'antd'
+import { Button, Form, Image, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, TreeSelect, Typography, message } from 'antd'
+import type { TableProps } from 'antd'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { NotesEditor } from '../components/NotesEditor'
 import { API_QUERY_LIMIT_MAX, clampQueryLimit } from '../api/limits'
-import { listMedia } from '../api/media'
+import { listMedia, mediaFileUrl } from '../api/media'
 import { createPlant, queryPlants } from '../api/plants'
 import { listTags } from '../api/tags'
 import { querySpecies } from '../api/species'
@@ -103,6 +104,74 @@ export function PlantsPage() {
     value: item.id,
     label: item.common_name?.trim() || 'Unknown common name',
   }))
+
+  const tableColumns: TableProps<Plant>['columns'] = isMobile
+    ? [
+        {
+          title: 'Plant',
+          render: (_, row) => (
+            <div style={{ lineHeight: 1.25, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {row.main_media_id && (
+                <Image
+                  src={mediaFileUrl(row.main_media_id)}
+                  width={36}
+                  height={36}
+                  style={{ objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                  preview={false}
+                  fallback='data:image/gif;base64,R0lGODlhAQABAAAAACw='
+                />
+              )}
+              <div style={{ minWidth: 0 }}>
+                <Button
+                  type='link'
+                  style={{ padding: 0, textAlign: 'left', height: 'auto', whiteSpace: 'normal' }}
+                  onClick={() => navigate(`/plants/${row.id}`)}
+                >
+                  {row.name}
+                </Button>
+                <Typography.Text type='secondary' style={{ fontSize: 12, display: 'block' }}>
+                  {row.species?.common_name || row.species?.name || '-'}
+                </Typography.Text>
+              </div>
+            </div>
+          ),
+        },
+        {
+          title: 'Tags',
+          width: 130,
+          render: (_, row) => (
+            <Typography.Text style={{ fontSize: 12 }}>
+              {row.tags.map((item) => item.name).join(', ') || '-'}
+            </Typography.Text>
+          ),
+        },
+      ]
+    : [
+        {
+          title: '',
+          width: 56,
+          render: (_, row) => row.main_media_id ? (
+            <Image
+              src={mediaFileUrl(row.main_media_id)}
+              width={40}
+              height={40}
+              style={{ objectFit: 'cover', borderRadius: 4 }}
+              preview={false}
+              fallback='data:image/gif;base64,R0lGODlhAQABAAAAACw='
+            />
+          ) : null,
+        },
+        {
+          title: 'Name',
+          render: (_, row) => (
+            <Button type='link' style={{ padding: 0 }} onClick={() => navigate(`/plants/${row.id}`)}>
+              {row.name}
+            </Button>
+          ),
+        },
+        { title: 'Species', render: (_, row) => row.species?.name ?? '-' },
+        { title: 'Tags', render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-' },
+      ]
 
   async function refresh() {
     const data = await queryPlants({ nameContains, speciesIds, tagId, archived, limit, offset })
@@ -216,29 +285,21 @@ export function PlantsPage() {
         rowKey='id'
         dataSource={items}
         size={isMobile ? 'small' : 'middle'}
-        scroll={{ x: 920 }}
+        scroll={isMobile ? undefined : { x: 920 }}
+        tableLayout={isMobile ? 'fixed' : undefined}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50],
           showTotal: (total) => `${total} plants`,
+          size: isMobile ? 'small' : undefined,
+          simple: isMobile,
         }}
         onRow={(row) => ({
           onClick: () => navigate(`/plants/${row.id}`),
           style: { cursor: 'pointer' },
         })}
-        columns={[
-          {
-            title: 'Name',
-            render: (_, row) => (
-              <Button type='link' style={{ padding: 0 }} onClick={() => navigate(`/plants/${row.id}`)}>
-                {row.name}
-              </Button>
-            ),
-          },
-          { title: 'Species', render: (_, row) => row.species?.name ?? '-' },
-          { title: 'Tags', render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-' },
-        ]}
+        columns={tableColumns}
       />
 
       <Modal
@@ -289,6 +350,7 @@ export function PlantsPage() {
           setFilters(values)
           setFilterModalOpen(false)
         }}
+        width={isMobile ? '100%' : 640}
       >
         <Form form={filterForm} layout='vertical'>
           <Form.Item label='Name Contains' name='nameContains'>
@@ -313,11 +375,11 @@ export function PlantsPage() {
           <Form.Item label='Show Archived' name='archived' valuePropName='checked'>
             <Switch />
           </Form.Item>
-          <Space wrap style={{ width: '100%' }}>
-            <Form.Item label='Limit' name='limit' style={{ flex: 1 }}>
+          <Space wrap style={{ width: '100%' }} direction={isMobile ? 'vertical' : 'horizontal'}>
+            <Form.Item label='Limit' name='limit' style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
               <InputNumber min={1} max={API_QUERY_LIMIT_MAX} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label='Offset' name='offset' style={{ flex: 1 }}>
+            <Form.Item label='Offset' name='offset' style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           </Space>

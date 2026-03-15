@@ -18,6 +18,7 @@ class MediaCreate(BaseModel):
         title: Optional human-readable title for the media item.
         plant_id: Optional associated plant id.
         tag_id: Optional associated tag id.
+        species_id: Optional associated species id.
     """
 
     filename: str
@@ -26,6 +27,7 @@ class MediaCreate(BaseModel):
     title: Optional[str] = None
     plant_id: int | None = None
     tag_id: int | None = None
+    species_id: int | None = None
 
 
 class Media(MediaCreate):
@@ -52,6 +54,7 @@ class MediaListItem(BaseModel):
     mime_type: str
     plant_id: int | None = None
     tag_id: int | None = None
+    species_id: int | None = None
     file_path: str | None = None
 
 

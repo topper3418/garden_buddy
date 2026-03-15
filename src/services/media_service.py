@@ -107,6 +107,7 @@ def create_media(payload: MediaCreate) -> Media:
         title=payload.title,
         plant_id=payload.plant_id,
         tag_id=payload.tag_id,
+        species_id=payload.species_id,
     )
     media = get_media_by_id(media_id)
     if not media:
@@ -122,6 +123,7 @@ def update_media(
     size: int | None | object = _UNSET,
     plant_id: int | None | object = _UNSET,
     tag_id: int | None | object = _UNSET,
+    species_id: int | None | object = _UNSET,
 ) -> Media | None:
     """Update mutable metadata fields and return updated media."""
     ensure_tables()
@@ -136,6 +138,8 @@ def update_media(
         db_kwargs["plant_id"] = plant_id
     if tag_id is not _UNSET:
         db_kwargs["tag_id"] = tag_id
+    if species_id is not _UNSET:
+        db_kwargs["species_id"] = species_id
 
     updated = db_update_media(
         media_id,

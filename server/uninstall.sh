@@ -17,7 +17,7 @@ ENV_FILE="${ENV_DIR}/garden-buddy.env"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 NGINX_AVAILABLE="/etc/nginx/sites-available/${SERVICE_NAME}.conf"
 NGINX_ENABLED="/etc/nginx/sites-enabled/${SERVICE_NAME}.conf"
-REMOVE_ENV_FILE="${REMOVE_ENV_FILE:-true}"
+REMOVE_ENV_FILE="${REMOVE_ENV_FILE:-false}"
 REMOVE_BUILD_ARTIFACTS="${REMOVE_BUILD_ARTIFACTS:-true}"
 
 log() {

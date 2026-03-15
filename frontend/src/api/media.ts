@@ -45,17 +45,18 @@ export function getMediaById(id: number, includeFilePath = true): Promise<Media>
   return getJson<Media>(`/media/${id}?include_file_path=${String(includeFilePath)}`)
 }
 
-export function uploadMedia(file: File, title?: string, plantId?: number, tagId?: number): Promise<Media> {
+export function uploadMedia(file: File, title?: string, plantId?: number, tagId?: number, speciesId?: number): Promise<Media> {
   const form = new FormData()
   form.append('file', file)
   if (title) form.append('title', title)
   if (plantId !== undefined) form.append('plant_id', String(plantId))
   if (tagId !== undefined) form.append('tag_id', String(tagId))
+  if (speciesId !== undefined) form.append('species_id', String(speciesId))
   return postForm<Media>('/media', form)
 }
 
-export function updateMedia(id: number, payload: { title?: string | null; mime_type?: string | null; size?: number | null; plant_id?: number | null; tag_id?: number | null }): Promise<Media> {
-  return patchJson<Media, { title?: string | null; mime_type?: string | null; size?: number | null; plant_id?: number | null; tag_id?: number | null }>(`/media/${id}`, payload)
+export function updateMedia(id: number, payload: { title?: string | null; mime_type?: string | null; size?: number | null; plant_id?: number | null; tag_id?: number | null; species_id?: number | null }): Promise<Media> {
+  return patchJson<Media, { title?: string | null; mime_type?: string | null; size?: number | null; plant_id?: number | null; tag_id?: number | null; species_id?: number | null }>(`/media/${id}`, payload)
 }
 
 export function deleteMedia(id: number): Promise<void> {
