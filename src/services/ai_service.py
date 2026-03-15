@@ -13,14 +13,27 @@ from src.models.species import Species
 from src.settings import settings
 
 
+def _is_missing_or_placeholder(value: str) -> bool:
+    normalized = value.strip().lower()
+    if not normalized:
+        return True
+    if normalized.startswith("your_openai_"):
+        return True
+    if normalized in {"change-me", "changeme", "replace-me"}:
+        return True
+    if "example.invalid" in normalized:
+        return True
+    return False
+
+
 def _validate_ai_config() -> None:
     missing: list[str] = []
 
-    if not settings.openai_api_key or settings.openai_api_key.startswith("your_openai_"):
+    if _is_missing_or_placeholder(settings.openai_api_key):
         missing.append("GB_OPENAI_API_KEY")
-    if not settings.openai_api_model or settings.openai_api_model.startswith("your_openai_"):
+    if _is_missing_or_placeholder(settings.openai_api_model):
         missing.append("GB_OPENAI_API_MODEL")
-    if not settings.openai_api_endpoint or settings.openai_api_endpoint.startswith("your_openai_"):
+    if _is_missing_or_placeholder(settings.openai_api_endpoint):
         missing.append("GB_OPENAI_API_ENDPOINT")
 
     if missing:

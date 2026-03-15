@@ -29,6 +29,15 @@ def test_extract_json_object_handles_embedded_json() -> None:
     assert payload == {"k": "v"}
 
 
+def test_validate_ai_config_rejects_placeholder_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ai_service.settings, "openai_api_key", "change-me")
+    monkeypatch.setattr(ai_service.settings, "openai_api_endpoint", "https://example.invalid")
+    monkeypatch.setattr(ai_service.settings, "openai_api_model", "your_openai_api_model")
+
+    with pytest.raises(ValueError, match="Missing AI configuration"):
+        ai_service._validate_ai_config()
+
+
 def test_run_chat_completion_success_path(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ai_service, "_validate_ai_config", lambda: None)
     monkeypatch.setattr(ai_service, "_chat_completions_url", lambda: "https://example.test/v1/chat/completions")
