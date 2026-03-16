@@ -1,6 +1,11 @@
 .app-shell {
+  height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+.app-shell > .ant-layout {
+  min-height: 100%;
 }
 
 .app-shell__sider {
@@ -28,6 +33,7 @@
 .app-shell__content {
   margin: 16px;
   min-width: 0;
+  overflow: visible;
 }
 
 .app-shell__content-card {
@@ -36,8 +42,7 @@
   min-height: calc(100dvh - 32px);
   width: 100%;
   box-sizing: border-box;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   padding: 16px;
   border-radius: 12px;
 }
@@ -62,18 +67,19 @@
   .app-shell__header {
     padding: 0 12px;
     min-height: 56px;
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 2;
+    left: 0;
+    right: 0;
+    z-index: 30;
   }
 
   .app-shell__content {
-    margin: 8px;
+    margin: 56px 8px 8px;
   }
 
   .app-shell__content-card {
     min-height: calc(100dvh - 80px);
-    overflow: visible;
     padding: 12px;
     border-radius: 10px;
   }

@@ -15,6 +15,10 @@ import { NotesEditor } from '../components/NotesEditor'
 import { useIsMobile } from '../hooks/useIsMobile'
 import type { Media, Plant, Species, SpeciesCreate } from '../types/models'
 
+function sortByLabel<T extends { label: string }>(options: T[]): T[] {
+  return [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+}
+
 function collectDescendantSpeciesIds(rootId: number, species: Species[]): number[] {
   const childrenByParent = new Map<number, number[]>()
 
@@ -140,6 +144,18 @@ export function SpeciesDetailPage() {
     : undefined
   const speciesIdValue = species.id
   const speciesNotesValue = species.notes
+  const parentSpeciesOptions = sortByLabel(
+    speciesOptions
+      .filter((item) => item.id !== species.id)
+      .map((item) => ({
+        value: item.id,
+        label: item.common_name?.trim() || item.name,
+      })),
+  )
+  const mediaSelectOptions = sortByLabel(mediaItems.map((item) => ({
+    value: item.id,
+    label: item.title || item.filename,
+  })))
 
   const plantsColumns: TableProps<Plant>['columns'] = isMobile
     ? [
@@ -244,54 +260,55 @@ export function SpeciesDetailPage() {
   }
 
   return (
-    <Space direction='vertical' size={16} style={{ width: '100%' }}>
-      <Space wrap direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/species')}>
-          Back to Species
-        </Button>
-        <Button
-          icon={<EditOutlined />}
-          onClick={() => {
-            form.setFieldsValue({
-              name: species.name,
-              common_name: species.common_name ?? undefined,
-              notes: species.notes ?? undefined,
-              parent_species_id: species.parent_species_id ?? undefined,
-              main_media_id: species.main_media_id ?? undefined,
-            })
-            setEditModalOpen(true)
-          }}
-        >
-          Edit
-        </Button>
-        <Button
-          onClick={() => {
-            document.getElementById('species-assistant-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }}
-        >
-          AI Assistant
-        </Button>
-        <Button onClick={() => navigate(`/plants?speciesIds=${species.id}`)}>View Plants</Button>
-        <Popconfirm
-          title='Delete this species?'
-          description='This may fail if subspecies or plant references still exist.'
-          onConfirm={async () => {
-            try {
-              await deleteSpecies(species.id)
-              message.success('Species deleted')
-              navigate('/species')
-            } catch {
-              message.error('Could not delete species (subspecies or plant references may exist)')
-            }
-          }}
-        >
-          <Button danger icon={<DeleteOutlined />}>Delete</Button>
-        </Popconfirm>
-      </Space>
-
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        {species.common_name?.trim() || species.name}
-      </Typography.Title>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
+      <div className='view-banner'>
+        <Typography.Title level={3} style={{ margin: 0, marginBottom: 8 }}>
+          {species.common_name?.trim() || species.name}
+        </Typography.Title>
+        <div className='view-banner__controls'>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/species')}>
+            Back to Species
+          </Button>
+          <Button
+            icon={<EditOutlined />}
+            onClick={() => {
+              form.setFieldsValue({
+                name: species.name,
+                common_name: species.common_name ?? undefined,
+                notes: species.notes ?? undefined,
+                parent_species_id: species.parent_species_id ?? undefined,
+                main_media_id: species.main_media_id ?? undefined,
+              })
+              setEditModalOpen(true)
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            onClick={() => {
+              document.getElementById('species-assistant-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}
+          >
+            AI Assistant
+          </Button>
+          <Button onClick={() => navigate(`/plants?speciesIds=${species.id}`)}>View Plants</Button>
+          <Popconfirm
+            title='Delete this species?'
+            description='This may fail if subspecies or plant references still exist.'
+            onConfirm={async () => {
+              try {
+                await deleteSpecies(species.id)
+                message.success('Species deleted')
+                navigate('/species')
+              } catch {
+                message.error('Could not delete species (subspecies or plant references may exist)')
+              }
+            }}
+          >
+            <Button danger icon={<DeleteOutlined />}>Delete</Button>
+          </Popconfirm>
+        </div>
+      </div>
 
       <Card>
         <Descriptions bordered column={1} size='small'>
@@ -301,11 +318,7 @@ export function SpeciesDetailPage() {
           <Descriptions.Item label='Plant Count'>{species.plant_count}</Descriptions.Item>
           <Descriptions.Item label='Notes'>
             {species.notes?.trim()
-              ? (
-                <div style={{ maxHeight: isMobile ? 'none' : 240, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
-                  <ReactMarkdown>{species.notes}</ReactMarkdown>
-                </div>
-                )
+              ? <ReactMarkdown>{species.notes}</ReactMarkdown>
               : '-'}
           </Descriptions.Item>
           <Descriptions.Item label='Created At'>{species.created_at}</Descriptions.Item>
@@ -384,15 +397,13 @@ export function SpeciesDetailPage() {
         {mediaItems.length === 0 ? (
           <Typography.Text type='secondary'>No images attached to this species yet.</Typography.Text>
         ) : (
-          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
-            <Row gutter={[16, 16]}>
-              {mediaItems.map((item) => (
-                <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
-                  <MediaCard media={item} mode='expand' onRenameMedia={() => void loadData()} />
-                </Col>
-              ))}
-            </Row>
-          </div>
+          <Row gutter={[16, 16]}>
+            {mediaItems.map((item) => (
+              <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
+                <MediaCard media={item} mode='expand' onRenameMedia={() => void loadData()} />
+              </Col>
+            ))}
+          </Row>
         )}
       </Card>
 
@@ -438,12 +449,7 @@ export function SpeciesDetailPage() {
           <Form.Item label='Parent Species' name='parent_species_id'>
             <Select
               allowClear
-              options={speciesOptions
-                .filter((item) => item.id !== species.id)
-                .map((item) => ({
-                  value: item.id,
-                  label: item.common_name?.trim() || item.name,
-                }))}
+              options={parentSpeciesOptions}
             />
           </Form.Item>
           <Form.Item label='Notes' name='notes'>
@@ -452,10 +458,7 @@ export function SpeciesDetailPage() {
           <Form.Item label='Main Photo' name='main_media_id'>
             <Select
               allowClear
-              options={mediaItems.map((item) => ({
-                value: item.id,
-                label: item.title || item.filename,
-              }))}
+              options={mediaSelectOptions}
             />
           </Form.Item>
         </Form>
@@ -482,6 +485,6 @@ export function SpeciesDetailPage() {
           </Upload>
         </Space>
       </Modal>
-    </Space>
+    </div>
   )
 }

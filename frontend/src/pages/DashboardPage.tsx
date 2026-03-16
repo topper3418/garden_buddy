@@ -43,7 +43,9 @@ export function DashboardPage() {
 
   return (
     <>
-      <Typography.Title level={3}>Dashboard</Typography.Title>
+      <div className='view-banner'>
+        <Typography.Title level={3} style={{ margin: 0 }}>Dashboard</Typography.Title>
+      </div>
       <Row gutter={[12, 12]}>
         <Col xs={12} sm={12} md={6}>
           <Card><Statistic title='Species' value={counts.species} /></Card>
@@ -61,15 +63,15 @@ export function DashboardPage() {
 
       <Row gutter={16} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
-          <Card title='Most Recently Updated Plants' styles={{ body: { maxHeight: isMobile ? 360 : 420, overflowY: 'auto' } }}>
+          <Card title='Most Recently Updated Plants'>
             <List
               dataSource={recentPlants}
               renderItem={(item) => (
                 <List.Item>
                   <Space
+                    wrap
                     style={{ width: '100%', justifyContent: 'space-between' }}
-                    direction={isMobile ? 'vertical' : 'horizontal'}
-                    size={isMobile ? 2 : 8}
+                    size={8}
                   >
                     <Typography.Link onClick={() => navigate(`/plants/${item.id}`)}>{item.name}</Typography.Link>
                     <Typography.Text type='secondary'>{new Date(item.created_at).toLocaleDateString()}</Typography.Text>
@@ -80,7 +82,7 @@ export function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card title='Most Recent Photos' styles={{ body: { maxHeight: isMobile ? 380 : 420, overflowY: 'auto' } }}>
+          <Card title='Most Recent Photos'>
             <div
               style={{
                 display: 'grid',

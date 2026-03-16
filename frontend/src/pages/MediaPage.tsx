@@ -18,12 +18,16 @@ type SpeciesTreeOption = {
   children?: SpeciesTreeOption[]
 }
 
+function sortByLabel<T extends { label: string }>(options: T[]): T[] {
+  return [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+}
+
 function buildSpeciesTree(species: Species[]): SpeciesTreeOption[] {
   const byId = new Map<number, SpeciesTreeOption>()
 
   for (const item of species) {
     byId.set(item.id, {
-      title: item.common_name?.trim() || 'Unknown common name',
+      title: item.common_name?.trim() || item.name,
       value: item.id,
       key: item.id,
       children: [],
@@ -88,12 +92,13 @@ export function MediaPage() {
       if (!species) {
         return 'Selected species'
       }
-      return species.common_name?.trim() || 'Unknown common name'
+      return species.common_name?.trim() || species.name
     })
     .slice(0, 4)
   const selectedTagLabel = tagId === undefined
     ? undefined
     : tagOptions.find((item) => item.id === tagId)?.name ?? 'Selected tag'
+  const tagSelectOptions = sortByLabel(tagOptions.map((item) => ({ value: item.id, label: item.name })))
 
   async function refresh() {
     const data = await queryMedia({ nameContains, speciesIds, tagId, limit, offset, includeFilePath: true })
@@ -142,28 +147,28 @@ export function MediaPage() {
 
   return (
     <>
-      <Space
-        wrap
-        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}
-        direction={isMobile ? 'vertical' : 'horizontal'}
-      >
-        <Typography.Title level={3} style={{ margin: 0 }}>Media</Typography.Title>
-        <Button
-          icon={<FilterOutlined />}
-          onClick={() => {
-            filterForm.setFieldsValue({
-              nameContains,
-              speciesIds,
-              tagId,
-              limit,
-              offset,
-            })
-            setFilterModalOpen(true)
-          }}
-        >
-          Filters
-        </Button>
-      </Space>
+      <div className='view-banner'>
+        <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Typography.Title level={3} style={{ margin: 0 }}>Media</Typography.Title>
+          <div className='view-banner__controls'>
+            <Button
+              icon={<FilterOutlined />}
+              onClick={() => {
+                filterForm.setFieldsValue({
+                  nameContains,
+                  speciesIds,
+                  tagId,
+                  limit,
+                  offset,
+                })
+                setFilterModalOpen(true)
+              }}
+            >
+              Filters
+            </Button>
+          </div>
+        </Space>
+      </div>
 
       <Space wrap style={{ marginBottom: 16 }}>
         {nameContains && <Tag color='green'>Name: {nameContains}</Tag>}
@@ -223,10 +228,10 @@ export function MediaPage() {
           <Form.Item label='Tag' name='tagId'>
             <Select
               allowClear
-              options={tagOptions.map((item) => ({ value: item.id, label: item.name }))}
+              options={tagSelectOptions}
             />
           </Form.Item>
-          <Space style={{ width: '100%' }} direction={isMobile ? 'vertical' : 'horizontal'}>
+          <Space wrap style={{ width: '100%' }}>
             <Form.Item label='Limit' name='limit' style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
               <InputNumber min={1} max={API_QUERY_LIMIT_MAX} style={{ width: '100%' }} />
             </Form.Item>

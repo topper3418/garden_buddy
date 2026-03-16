@@ -8,6 +8,10 @@ import { createTag, listTags } from '../api/tags'
 import { useIsMobile } from '../hooks/useIsMobile'
 import type { MediaListItem, TagCreate, TagListItem } from '../types/models'
 
+function sortByLabel<T extends { label: string }>(options: T[]): T[] {
+  return [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+}
+
 export function TagsPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -15,6 +19,10 @@ export function TagsPage() {
   const [isModalOpen, setModalOpen] = useState(false)
   const [mediaOptions, setMediaOptions] = useState<MediaListItem[]>([])
   const [form] = Form.useForm<TagCreate>()
+  const mediaSelectOptions = sortByLabel(mediaOptions.map((item) => ({
+    value: item.id,
+    label: item.title || item.filename,
+  })))
 
   async function refresh() {
     const [tags, media] = await Promise.all([listTags(200, 0), listMedia(200, 0, false)])
@@ -97,14 +105,14 @@ export function TagsPage() {
 
   return (
     <>
-      <Space
-        wrap
-        direction={isMobile ? 'vertical' : 'horizontal'}
-        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}
-      >
-        <Typography.Title level={3} style={{ margin: 0 }}>Tags</Typography.Title>
-        <Button type='primary' onClick={() => setModalOpen(true)}>New Tag</Button>
-      </Space>
+      <div className='view-banner'>
+        <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Typography.Title level={3} style={{ margin: 0 }}>Tags</Typography.Title>
+          <div className='view-banner__controls'>
+            <Button type='primary' onClick={() => setModalOpen(true)}>New Tag</Button>
+          </div>
+        </Space>
+      </div>
 
       <Table
         rowKey='id'
@@ -147,10 +155,7 @@ export function TagsPage() {
           <Form.Item label='Main Photo' name='main_media_id'>
             <Select
               allowClear
-              options={mediaOptions.map((item) => ({
-                value: item.id,
-                label: item.title || item.filename,
-              }))}
+              options={mediaSelectOptions}
             />
           </Form.Item>
         </Form>

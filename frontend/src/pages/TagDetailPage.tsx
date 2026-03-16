@@ -13,6 +13,10 @@ import { NotesEditor } from '../components/NotesEditor'
 import { useIsMobile } from '../hooks/useIsMobile'
 import type { Media, MediaListItem, Plant, Tag, TagCreate } from '../types/models'
 
+function sortByLabel<T extends { label: string }>(options: T[]): T[] {
+  return [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+}
+
 export function TagDetailPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -87,6 +91,10 @@ export function TagDetailPage() {
   const mainMedia = tag.main_media_id
     ? mediaOptions.find((item) => item.id === tag.main_media_id)
     : undefined
+  const mediaSelectOptions = sortByLabel(mediaOptions.map((item) => ({
+    value: item.id,
+    label: item.title || item.filename,
+  })))
 
   const plantsColumns: TableProps<Plant>['columns'] = isMobile
     ? [
@@ -131,40 +139,41 @@ export function TagDetailPage() {
       ]
 
   return (
-    <Space direction='vertical' size={16} style={{ width: '100%' }}>
-      <Space wrap direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tags')}>
-          Back to Tags
-        </Button>
-        <Button
-          icon={<EditOutlined />}
-          onClick={() => {
-            form.setFieldsValue({
-              name: tag.name,
-              notes: tag.notes ?? undefined,
-              main_media_id: tag.main_media_id ?? undefined,
-            })
-            setEditModalOpen(true)
-          }}
-        >
-          Edit
-        </Button>
-        <Button onClick={() => navigate(`/plants?tagId=${tag.id}`)}>View Plants</Button>
-        <Popconfirm
-          title='Delete this tag?'
-          onConfirm={async () => {
-            await deleteTag(tag.id)
-            message.success('Tag deleted')
-            navigate('/tags')
-          }}
-        >
-          <Button danger icon={<DeleteOutlined />}>Delete</Button>
-        </Popconfirm>
-      </Space>
-
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        {tag.name}
-      </Typography.Title>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
+      <div className='view-banner'>
+        <Typography.Title level={3} style={{ margin: 0, marginBottom: 8 }}>
+          {tag.name}
+        </Typography.Title>
+        <div className='view-banner__controls'>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tags')}>
+            Back to Tags
+          </Button>
+          <Button
+            icon={<EditOutlined />}
+            onClick={() => {
+              form.setFieldsValue({
+                name: tag.name,
+                notes: tag.notes ?? undefined,
+                main_media_id: tag.main_media_id ?? undefined,
+              })
+              setEditModalOpen(true)
+            }}
+          >
+            Edit
+          </Button>
+          <Button onClick={() => navigate(`/plants?tagId=${tag.id}`)}>View Plants</Button>
+          <Popconfirm
+            title='Delete this tag?'
+            onConfirm={async () => {
+              await deleteTag(tag.id)
+              message.success('Tag deleted')
+              navigate('/tags')
+            }}
+          >
+            <Button danger icon={<DeleteOutlined />}>Delete</Button>
+          </Popconfirm>
+        </div>
+      </div>
 
       <Card>
         <Descriptions bordered column={1} size='small'>
@@ -174,11 +183,7 @@ export function TagDetailPage() {
           </Descriptions.Item>
           <Descriptions.Item label='Notes'>
             {tag.notes?.trim()
-              ? (
-                <div style={{ maxHeight: isMobile ? 'none' : 240, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
-                  <ReactMarkdown>{tag.notes}</ReactMarkdown>
-                </div>
-                )
+              ? <ReactMarkdown>{tag.notes}</ReactMarkdown>
               : '-'}
           </Descriptions.Item>
           <Descriptions.Item label='Created At'>{tag.created_at}</Descriptions.Item>
@@ -218,15 +223,13 @@ export function TagDetailPage() {
         {mediaItems.length === 0 ? (
           <Typography.Text type='secondary'>No images attached to this tag yet.</Typography.Text>
         ) : (
-          <div style={{ maxHeight: isMobile ? 'none' : 420, overflowY: isMobile ? 'visible' : 'auto', paddingRight: isMobile ? 0 : 8 }}>
-            <Row gutter={[16, 16]}>
-              {mediaItems.map((item) => (
-                <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
-                  <MediaCard media={item} mode='expand' onRenameMedia={() => void loadData()} />
-                </Col>
-              ))}
-            </Row>
-          </div>
+          <Row gutter={[16, 16]}>
+            {mediaItems.map((item) => (
+              <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
+                <MediaCard media={item} mode='expand' onRenameMedia={() => void loadData()} />
+              </Col>
+            ))}
+          </Row>
         )}
       </Card>
 
@@ -256,10 +259,7 @@ export function TagDetailPage() {
           <Form.Item label='Main Photo' name='main_media_id'>
             <Select
               allowClear
-              options={mediaOptions.map((item) => ({
-                value: item.id,
-                label: item.title || item.filename,
-              }))}
+              options={mediaSelectOptions}
             />
           </Form.Item>
         </Form>
@@ -286,6 +286,6 @@ export function TagDetailPage() {
           </Upload>
         </Space>
       </Modal>
-    </Space>
+    </div>
   )
 }

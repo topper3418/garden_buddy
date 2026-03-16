@@ -20,12 +20,16 @@ type SpeciesTreeOption = {
   children?: SpeciesTreeOption[]
 }
 
+function sortByLabel<T extends { label: string }>(options: T[]): T[] {
+  return [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+}
+
 function buildSpeciesTree(species: Species[]): SpeciesTreeOption[] {
   const byId = new Map<number, SpeciesTreeOption>()
 
   for (const item of species) {
     byId.set(item.id, {
-      title: item.common_name?.trim() || 'Unknown common name',
+      title: item.common_name?.trim() || item.name,
       value: item.id,
       key: item.id,
       children: [],
@@ -94,16 +98,18 @@ export function PlantsPage() {
       if (!species) {
         return 'Selected species'
       }
-      return species.common_name?.trim() || 'Unknown common name'
+      return species.common_name?.trim() || species.name
     })
     .slice(0, 4)
   const selectedTagLabel = tagId === undefined
     ? undefined
     : typeOptions.find((item) => item.id === tagId)?.name ?? 'Selected tag'
-  const speciesSelectOptions = speciesOptions.map((item) => ({
+  const speciesSelectOptions = sortByLabel(speciesOptions.map((item) => ({
     value: item.id,
-    label: item.common_name?.trim() || 'Unknown common name',
-  }))
+    label: item.common_name?.trim() || item.name,
+  })))
+  const tagSelectOptions = sortByLabel(typeOptions.map((item) => ({ value: item.id, label: item.name })))
+  const mediaSelectOptions = sortByLabel(mediaOptions.map((item) => ({ value: item.id, label: item.title || item.filename })))
 
   const tableColumns: TableProps<Plant>['columns'] = isMobile
     ? [
@@ -169,8 +175,14 @@ export function PlantsPage() {
             </Button>
           ),
         },
-        { title: 'Species', render: (_, row) => row.species?.name ?? '-' },
-        { title: 'Tags', render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-' },
+        {
+          title: 'Species',
+          render: (_, row) => row.species?.common_name || row.species?.name || '-',
+        },
+        {
+          title: 'Tags',
+          render: (_, row) => row.tags.map((item) => item.name).join(', ') || '-',
+        },
       ]
 
   async function refresh() {
@@ -242,32 +254,30 @@ export function PlantsPage() {
 
   return (
     <>
-      <Space
-        wrap
-        direction={isMobile ? 'vertical' : 'horizontal'}
-        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}
-      >
-        <Typography.Title level={3} style={{ margin: 0 }}>Plants</Typography.Title>
-        <Space wrap>
-          <Button
-            icon={<FilterOutlined />}
-            onClick={() => {
-              filterForm.setFieldsValue({
-                nameContains,
-                speciesIds,
-                tagId,
-                archived,
-                limit,
-                offset,
-              })
-              setFilterModalOpen(true)
-            }}
-          >
-            Filters
-          </Button>
-          <Button type='primary' onClick={() => setModalOpen(true)}>New Plant</Button>
+      <div className='view-banner'>
+        <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Typography.Title level={3} style={{ margin: 0 }}>Plants</Typography.Title>
+          <div className='view-banner__controls'>
+            <Button
+              icon={<FilterOutlined />}
+              onClick={() => {
+                filterForm.setFieldsValue({
+                  nameContains,
+                  speciesIds,
+                  tagId,
+                  archived,
+                  limit,
+                  offset,
+                })
+                setFilterModalOpen(true)
+              }}
+            >
+              Filters
+            </Button>
+            <Button type='primary' onClick={() => setModalOpen(true)}>New Plant</Button>
+          </div>
         </Space>
-      </Space>
+      </div>
 
       <Space wrap style={{ marginBottom: 16 }}>
         {nameContains && <Tag color='green'>Name: {nameContains}</Tag>}
@@ -326,13 +336,13 @@ export function PlantsPage() {
             <Select
               mode='multiple'
               allowClear
-              options={typeOptions.map((item) => ({ value: item.id, label: item.name }))}
+              options={tagSelectOptions}
             />
           </Form.Item>
           <Form.Item label='Main Photo' name='main_media_id'>
             <Select
               allowClear
-              options={mediaOptions.map((item) => ({ value: item.id, label: item.title || item.filename }))}
+              options={mediaSelectOptions}
             />
           </Form.Item>
           <Form.Item label='Notes' name='notes'>
@@ -369,13 +379,13 @@ export function PlantsPage() {
           <Form.Item label='Tag' name='tagId'>
             <Select
               allowClear
-              options={typeOptions.map((item) => ({ value: item.id, label: item.name }))}
+              options={tagSelectOptions}
             />
           </Form.Item>
           <Form.Item label='Show Archived' name='archived' valuePropName='checked'>
             <Switch />
           </Form.Item>
-          <Space wrap style={{ width: '100%' }} direction={isMobile ? 'vertical' : 'horizontal'}>
+          <Space wrap style={{ width: '100%' }}>
             <Form.Item label='Limit' name='limit' style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
               <InputNumber min={1} max={API_QUERY_LIMIT_MAX} style={{ width: '100%' }} />
             </Form.Item>

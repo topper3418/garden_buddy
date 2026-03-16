@@ -1,9 +1,13 @@
+html,
 body {
+  height: 100%;
   margin: 0;
   min-width: 320px;
   background: #f5f5f5;
   color: #1f2937;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 * {
@@ -45,5 +49,33 @@ body {
 }
 
 #root {
+  height: 100%;
   min-height: 100vh;
+}
+
+.view-banner {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: -16px -16px 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.view-banner__controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .view-banner {
+    top: 56px;
+    margin: -12px -12px 12px;
+    padding: 10px 12px;
+  }
 }

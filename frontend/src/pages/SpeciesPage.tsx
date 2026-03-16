@@ -14,6 +14,10 @@ type SpeciesTreeNode = Species & {
   children?: SpeciesTreeNode[]
 }
 
+function sortByLabel<T extends { label: string }>(options: T[]): T[] {
+  return [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+}
+
 function buildTreeRenderKey(nodes: SpeciesTreeNode[]): string {
   return nodes
     .map((node) => `${node.id}:${node.children?.length ?? 0}:${buildTreeRenderKey(node.children ?? [])}`)
@@ -60,6 +64,14 @@ export function SpeciesPage() {
   const [isGeneratingDraft, setGeneratingDraft] = useState(false)
   const [form] = Form.useForm<SpeciesCreate>()
   const tableRenderKey = buildTreeRenderKey(items)
+  const parentSpeciesOptions = sortByLabel(speciesOptions.map((item) => ({
+    value: item.id,
+    label: item.common_name?.trim() || item.name,
+  })))
+  const mediaSelectOptions = sortByLabel(mediaOptions.map((item) => ({
+    value: item.id,
+    label: item.title || item.filename,
+  })))
 
   async function refresh() {
     const [data, media] = await Promise.all([
@@ -200,14 +212,14 @@ export function SpeciesPage() {
 
   return (
     <>
-      <Space
-        wrap
-        direction={isMobile ? 'vertical' : 'horizontal'}
-        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}
-      >
-        <Typography.Title level={3} style={{ margin: 0 }}>Species</Typography.Title>
-        <Button type='primary' onClick={() => setModalOpen(true)}>New Species</Button>
-      </Space>
+      <div className='view-banner'>
+        <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Typography.Title level={3} style={{ margin: 0 }}>Species</Typography.Title>
+          <div className='view-banner__controls'>
+            <Button type='primary' onClick={() => setModalOpen(true)}>New Species</Button>
+          </div>
+        </Space>
+      </div>
 
       <Table
         key={tableRenderKey}
@@ -280,10 +292,7 @@ export function SpeciesPage() {
               virtual={false}
               optionFilterProp='label'
               getPopupContainer={(triggerNode) => triggerNode.parentElement ?? document.body}
-              options={speciesOptions.map((item) => ({
-                value: item.id,
-                label: item.common_name?.trim() || item.name,
-              }))}
+              options={parentSpeciesOptions}
             />
           </Form.Item>
           <Form.Item label='Notes' name='notes'>
@@ -296,10 +305,7 @@ export function SpeciesPage() {
               virtual={false}
               optionFilterProp='label'
               getPopupContainer={(triggerNode) => triggerNode.parentElement ?? document.body}
-              options={mediaOptions.map((item) => ({
-                value: item.id,
-                label: item.title || item.filename,
-              }))}
+              options={mediaSelectOptions}
             />
           </Form.Item>
         </Form>

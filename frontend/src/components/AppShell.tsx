@@ -1,7 +1,7 @@
 import { AppstoreOutlined, CameraOutlined, MenuOutlined, TagsOutlined } from '@ant-design/icons'
 import { Button, Drawer, Layout, Menu } from 'antd'
 import type { MenuProps } from 'antd'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -28,6 +28,47 @@ export function AppShell() {
       : location.pathname.startsWith('/tags/')
         ? '/tags'
         : location.pathname
+
+  useEffect(() => {
+    const unlockBodyScrollIfSafe = () => {
+      const overlaySelectors = '.ant-modal-wrap, .ant-image-preview-wrap, .ant-drawer-content-wrapper'
+      const hasVisibleOverlay = Array.from(document.querySelectorAll<HTMLElement>(overlaySelectors)).some((node) => {
+        const style = window.getComputedStyle(node)
+        return style.display !== 'none' && style.visibility !== 'hidden'
+      })
+
+      if (!hasVisibleOverlay) {
+        document.body.classList.remove('ant-scrolling-effect')
+        if (document.body.style.overflow === 'hidden') {
+          document.body.style.overflow = ''
+        }
+        if (document.body.style.overflowY === 'hidden') {
+          document.body.style.overflowY = ''
+        }
+        if (document.body.style.width) {
+          document.body.style.width = ''
+        }
+      }
+    }
+
+    const observer = new MutationObserver(() => {
+      window.requestAnimationFrame(unlockBodyScrollIfSafe)
+    })
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'style'],
+      childList: true,
+      subtree: true,
+    })
+
+    const intervalId = window.setInterval(unlockBodyScrollIfSafe, 400)
+    unlockBodyScrollIfSafe()
+
+    return () => {
+      observer.disconnect()
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   const menu = (
     <Menu
