@@ -1,6 +1,7 @@
 from pathlib import Path
-from pydantic import ValidationError
+from pydantic import ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables with GB_ prefix."""
     
     # OpenAI Configuration
-    openai_api_key: str
+    openai_api_key: str | None = None
     openai_api_endpoint: str
     openai_api_model: str
     
@@ -21,6 +22,13 @@ class Settings(BaseSettings):
     
     # Path Configuration
     base_dir: Path = PROJECT_ROOT
+    
+    @model_validator(mode="after")
+    def fallback_to_global_xai_key(self) -> "Settings":
+        """Fall back to global XAI_API_KEY if app-specific key is not set."""
+        if not self.openai_api_key:
+            self.openai_api_key = os.getenv("XAI_API_KEY") or ""
+        return self
     
     @property
     def logs_path(self) -> Path:
