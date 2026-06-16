@@ -1,0 +1,28 @@
+name: garden-buddy
+description: "Garden monitoring dashboard with plant database, media gallery, AI advisor"
+version: "1.0.0"
+icon: "🌿"
+
+backend:
+  type: python
+  command: "uvicorn src.api.main:app --host 0.0.0.0 --port 8000"
+  build: "pip install -r requirements.txt"
+  port: 8000
+  env:
+    DEBUG: "true"
+    DATABASE_URL: "sqlite:///./data/database.db"
+
+frontend:
+  type: react
+  build: "npm ci && npm run build"
+  output_dir: "frontend/dist"
+  spa_mode: true
+
+resources:
+  databases:
+    - name: main
+      type: sqlite
+      db_name: garden_buddy
+
+# The New World platform will clone this repo, run builds, generate systemd/nginx configs,
+# register in the icon grid, and start the full stack app.

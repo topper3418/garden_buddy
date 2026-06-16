@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.test.ts'],
   },
+  define: {
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify('/api'),
+  },
   build: {
     rollupOptions: {
       output: {
