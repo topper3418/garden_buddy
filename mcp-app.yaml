@@ -5,17 +5,17 @@ icon: "🌿"
 
 backend:
   type: python
-  command: "uvicorn src.api.main:app --host 0.0.0.0 --port 8000"
-  build: "pip install -r requirements.txt"
+  command: "uvicorn src.api.app:app --host 0.0.0.0 --port 8000"
   port: 8000
   env:
-    DEBUG: "true"
-    DATABASE_URL: "sqlite:///./data/database.db"
+    GB_DEV_MODE: "false"
+    GB_LOG_LEVEL: "info"
 
 frontend:
   type: react
+  dir: frontend
   build: "npm ci && npm run build"
-  output_dir: "frontend/dist"
+  output_dir: frontend/dist
   spa_mode: true
 
 resources:
@@ -24,5 +24,10 @@ resources:
       type: sqlite
       db_name: garden_buddy
 
-# The New World platform will clone this repo, run builds, generate systemd/nginx configs,
-# register in the icon grid, and start the full stack app.
+# New World deploy flow:
+# 1. git clone to /opt/newworld/apps/garden_buddy
+# 2. pip venv + gunicorn unix socket at /run/newworld/garden-buddy.sock
+# 3. frontend build with VITE_API_BASE_URL=/apps/garden-buddy/api and --base=/apps/garden-buddy/
+# 4. static files at /opt/newworld/www/garden-buddy/
+# 5. nginx: /apps/garden-buddy/api/ -> socket, /apps/garden-buddy/ -> static SPA
+# 6. sqlite data persisted at /var/lib/newworld-data/garden-buddy/
